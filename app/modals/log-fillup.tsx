@@ -12,8 +12,10 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Haptics from 'expo-haptics';
 import { EmptyState } from '@/components/EmptyState';
-import type { ThemeColors } from '@/constants/theme';
+import { Radius, Space, type ThemeColors } from '@/constants/theme';
+import { Fonts } from '@/constants/typography';
 import { useLogFillupForm } from '@/hooks/useLogFillupForm';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatDate } from '@/utils/format';
@@ -51,7 +53,10 @@ function LogFillupFormView({
 
   const handleSave = async () => {
     const success = await form.submit();
-    if (success) router.back();
+    if (success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      router.back();
+    }
   };
 
   return (
@@ -71,7 +76,9 @@ function LogFillupFormView({
               { borderColor: colors.border, backgroundColor: colors.surface },
             ]}
           >
-            <Text style={{ color: colors.text }}>{formatDate(form.date.getTime())}</Text>
+            <Text style={[styles.dateText, { color: colors.text }]}>
+              {formatDate(form.date.getTime())}
+            </Text>
           </Pressable>
           {showDatePicker && (
             <DateTimePicker
@@ -91,6 +98,7 @@ function LogFillupFormView({
           <TextInput
             style={[
               styles.input,
+              styles.inputTabular,
               {
                 borderColor: form.fieldErrors.odometer ? colors.danger : colors.border,
                 backgroundColor: colors.surface,
@@ -113,6 +121,7 @@ function LogFillupFormView({
           <TextInput
             style={[
               styles.input,
+              styles.inputTabular,
               {
                 borderColor: form.fieldErrors.litresFilled ? colors.danger : colors.border,
                 backgroundColor: colors.surface,
@@ -135,6 +144,7 @@ function LogFillupFormView({
           <TextInput
             style={[
               styles.input,
+              styles.inputTabular,
               {
                 borderColor: form.fieldErrors.pricePerLitre ? colors.danger : colors.border,
                 backgroundColor: colors.surface,
@@ -153,6 +163,7 @@ function LogFillupFormView({
           <TextInput
             style={[
               styles.input,
+              styles.inputTabular,
               { borderColor: colors.border, backgroundColor: colors.surface, color: colors.text },
             ]}
             keyboardType="decimal-pad"
@@ -229,30 +240,33 @@ function FormField({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 16, gap: 16, paddingBottom: 32 },
-  field: { gap: 6 },
-  label: { fontSize: 13, fontWeight: '600' },
+  scrollContent: { padding: Space.lg, gap: Space.lg, paddingBottom: Space.xxl },
+  field: { gap: Space.sm },
+  label: { fontSize: 13, fontFamily: Fonts.semiBold },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderRadius: Radius.md,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
     fontSize: 15,
+    fontFamily: Fonts.regular,
   },
-  fieldError: { fontSize: 12 },
+  inputTabular: { fontVariant: ['tabular-nums'] },
+  dateText: { fontSize: 15, fontFamily: Fonts.regular },
+  fieldError: { fontSize: 12, fontFamily: Fonts.regular },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: Space.xs,
   },
-  switchLabel: { fontSize: 15, fontWeight: '600' },
-  submitError: { fontSize: 13, textAlign: 'center' },
+  switchLabel: { fontSize: 15, fontFamily: Fonts.semiBold },
+  submitError: { fontSize: 13, textAlign: 'center', fontFamily: Fonts.regular },
   saveButton: {
-    borderRadius: 24,
-    paddingVertical: 14,
+    borderRadius: Radius.pill,
+    paddingVertical: Space.lg,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: Space.sm,
   },
-  saveButtonLabel: { fontSize: 16, fontWeight: '700' },
+  saveButtonLabel: { fontSize: 16, fontFamily: Fonts.bold },
 });

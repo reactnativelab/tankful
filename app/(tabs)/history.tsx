@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { EmptyState } from '@/components/EmptyState';
 import { HistoryRow } from '@/components/HistoryRow';
 import { VehicleSelector } from '@/components/VehicleSelector';
+import { Space } from '@/constants/theme';
 import { useFuelEntries } from '@/hooks/useFuelEntries';
 import { useSelectedVehicle } from '@/hooks/useSelectedVehicle';
 import { useSettings } from '@/hooks/useSettings';
@@ -100,6 +101,6 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { padding: 16, paddingBottom: 8 },
-  listContent: { paddingBottom: 24 },
+  header: { padding: Space.lg, paddingBottom: Space.sm },
+  listContent: { paddingTop: Space.sm, paddingBottom: Space.xl },
 });

@@ -12,18 +12,21 @@ import { BarChart, LineChart } from 'react-native-gifted-charts';
 import { EmptyState } from '@/components/EmptyState';
 import { StatCard } from '@/components/StatCard';
 import { VehicleSelector } from '@/components/VehicleSelector';
+import { Radius, Space } from '@/constants/theme';
+import { Fonts } from '@/constants/typography';
+import { useElevation, useThemeColors } from '@/hooks/useThemeColors';
 import { useSelectedVehicle } from '@/hooks/useSelectedVehicle';
 import { useSettings } from '@/hooks/useSettings';
-import { useThemeColors } from '@/hooks/useThemeColors';
 import { useVehicles } from '@/hooks/useVehicles';
 import { useVehicleStats } from '@/hooks/useVehicleStats';
 import { formatCurrency, formatMileage, formatNumber } from '@/utils/format';
 
-const SCREEN_PADDING = 16;
-const CARD_PADDING = 16;
+const SCREEN_PADDING = Space.lg;
+const CARD_PADDING = Space.lg;
 
 export default function StatsScreen() {
   const colors = useThemeColors();
+  const cardElevation = useElevation('level1');
   const { currencySymbol, distanceUnit } = useSettings();
   const { width } = useWindowDimensions();
   const { vehicles, loading: vehiclesLoading } = useVehicles();
@@ -98,11 +101,13 @@ export default function StatsScreen() {
                   label="Best Mileage"
                   value={formatMileage(stats.bestMileage, distanceUnit)}
                   colors={colors}
+                  valueColor={colors.mileageGood}
                 />
                 <StatCard
                   label="Worst Mileage"
                   value={formatMileage(stats.worstMileage, distanceUnit)}
                   colors={colors}
+                  valueColor={colors.mileageBad}
                 />
               </View>
               <View style={styles.statRow}>
@@ -126,7 +131,8 @@ export default function StatsScreen() {
               <View
                 style={[
                   styles.chartCard,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+                  cardElevation,
                 ]}
               >
                 {stats.mileageSeries.length === 0 ? (
@@ -149,8 +155,12 @@ export default function StatsScreen() {
                     yAxisColor={colors.border}
                     xAxisColor={colors.border}
                     rulesColor={colors.border}
-                    yAxisTextStyle={{ color: colors.textMuted }}
-                    xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 10 }}
+                    yAxisTextStyle={{ color: colors.textMuted, fontFamily: Fonts.regular }}
+                    xAxisLabelTextStyle={{
+                      color: colors.textMuted,
+                      fontSize: 10,
+                      fontFamily: Fonts.regular,
+                    }}
                     backgroundColor="transparent"
                     initialSpacing={16}
                     noOfSections={4}
@@ -166,7 +176,8 @@ export default function StatsScreen() {
               <View
                 style={[
                   styles.chartCard,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+                  cardElevation,
                 ]}
               >
                 <BarChart
@@ -181,8 +192,12 @@ export default function StatsScreen() {
                   yAxisColor={colors.border}
                   xAxisColor={colors.border}
                   rulesColor={colors.border}
-                  yAxisTextStyle={{ color: colors.textMuted }}
-                  xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 11 }}
+                  yAxisTextStyle={{ color: colors.textMuted, fontFamily: Fonts.regular }}
+                  xAxisLabelTextStyle={{
+                    color: colors.textMuted,
+                    fontSize: 11,
+                    fontFamily: Fonts.regular,
+                  }}
                   noOfSections={4}
                   initialSpacing={16}
                   spacing={24}
@@ -199,13 +214,13 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },
-  scrollContent: { padding: SCREEN_PADDING, gap: 16, paddingBottom: 48 },
-  statGrid: { gap: 10 },
-  statRow: { flexDirection: 'row', gap: 10 },
-  section: { gap: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: '700' },
+  scrollContent: { padding: SCREEN_PADDING, gap: Space.lg, paddingBottom: 48 },
+  statGrid: { gap: Space.md },
+  statRow: { flexDirection: 'row', gap: Space.md },
+  section: { gap: Space.sm },
+  sectionTitle: { fontSize: 16, fontFamily: Fonts.bold },
   chartCard: {
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     padding: CARD_PADDING,
     alignItems: 'center',
@@ -213,6 +228,7 @@ const styles = StyleSheet.create({
   chartEmptyText: {
     fontSize: 14,
     textAlign: 'center',
-    paddingVertical: 24,
+    paddingVertical: Space.xl,
+    fontFamily: Fonts.regular,
   },
 });

@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import type { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, {
@@ -8,7 +9,9 @@ import Animated, {
   useAnimatedStyle,
   type SharedValue,
 } from 'react-native-reanimated';
-import type { ThemeColors } from '@/constants/theme';
+import { Radius, Space, type ThemeColors } from '@/constants/theme';
+import { Fonts } from '@/constants/typography';
+import { useElevation } from '@/hooks/useThemeColors';
 import type { DistanceUnit } from '@/hooks/useSettings';
 import type { FuelEntry } from '@/types';
 import { formatCurrency, formatDate, formatMileage, formatNumber } from '@/utils/format';
@@ -68,6 +71,7 @@ export function HistoryRow({
   onDelete,
 }: HistoryRowProps) {
   const swipeableRef = useRef<SwipeableMethods>(null);
+  const elevation = useElevation('level1');
 
   return (
     <Swipeable
@@ -80,6 +84,7 @@ export function HistoryRow({
           progress={progress}
           colors={colors}
           onPress={() => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
             swipeableRef.current?.close();
             onDelete(entry.id);
           }}
@@ -89,12 +94,13 @@ export function HistoryRow({
       <View
         style={[
           styles.row,
-          { backgroundColor: colors.surface, borderBottomColor: colors.border },
+          { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+          elevation,
         ]}
       >
         <View style={styles.rowMain}>
           <Text style={[styles.date, { color: colors.text }]}>{formatDate(entry.date)}</Text>
-          <Text style={{ color: colors.textMuted }}>
+          <Text style={[styles.tabularText, { color: colors.textMuted }]}>
             {formatNumber(entry.litresFilled, 2)} L
           </Text>
         </View>
@@ -102,7 +108,7 @@ export function HistoryRow({
           <Text style={[styles.cost, { color: colors.text }]}>
             {formatCurrency(entry.totalCost, currencySymbol)}
           </Text>
-          <Text style={{ color: colors.textMuted }}>
+          <Text style={[styles.tabularText, { color: colors.textMuted }]}>
             {formatMileage(mileage, distanceUnit)}
           </Text>
         </View>
@@ -116,21 +122,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
+    marginHorizontal: Space.md,
+    marginBottom: Space.sm,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  rowMain: { gap: 4 },
-  rowEnd: { alignItems: 'flex-end', gap: 4 },
-  date: { fontSize: 15, fontWeight: '600' },
-  cost: { fontSize: 15, fontWeight: '700' },
+  rowMain: { gap: Space.xs },
+  rowEnd: { alignItems: 'flex-end', gap: Space.xs },
+  date: { fontSize: 15, fontFamily: Fonts.semiBold },
+  cost: { fontSize: 15, fontFamily: Fonts.bold, fontVariant: ['tabular-nums'] },
+  tabularText: { fontFamily: Fonts.regular, fontVariant: ['tabular-nums'] },
   deleteAction: {
     width: DELETE_WIDTH,
+    marginBottom: Space.sm,
   },
   deleteButton: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  deleteLabel: { fontWeight: '700', fontSize: 14 },
+  deleteLabel: { fontFamily: Fonts.bold, fontSize: 14 },
 });

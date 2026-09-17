@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { ThemeColors } from '@/constants/theme';
+import { Radius, Space, type ThemeColors } from '@/constants/theme';
+import { Fonts } from '@/constants/typography';
 
 interface EmptyStateProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -38,20 +39,21 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
-    padding: 24,
+    gap: Space.lg,
+    padding: Space.xl,
   },
   message: {
     fontSize: 15,
     textAlign: 'center',
+    fontFamily: Fonts.regular,
   },
   button: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 24,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.xl,
+    borderRadius: Radius.pill,
   },
   buttonLabel: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: Fonts.semiBold,
   },
 });

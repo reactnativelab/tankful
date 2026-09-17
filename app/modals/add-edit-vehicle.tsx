@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { FUEL_TYPE_OPTIONS, VEHICLE_TYPE_OPTIONS } from '@/constants/vehicleOptions';
-import type { ThemeColors } from '@/constants/theme';
+import { Radius, Space, type ThemeColors } from '@/constants/theme';
+import { Fonts } from '@/constants/typography';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useVehicleForm } from '@/hooks/useVehicleForm';
 
@@ -178,32 +179,33 @@ function FormField({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scrollContent: { padding: 16, gap: 16, paddingBottom: 32 },
-  field: { gap: 6 },
-  label: { fontSize: 13, fontWeight: '600' },
+  scrollContent: { padding: Space.lg, gap: Space.lg, paddingBottom: Space.xxl },
+  field: { gap: Space.sm },
+  label: { fontSize: 13, fontFamily: Fonts.semiBold },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderRadius: Radius.md,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
     fontSize: 15,
+    fontFamily: Fonts.regular,
   },
-  fieldError: { fontSize: 12 },
-  segmentRow: { flexDirection: 'row', gap: 8 },
+  fieldError: { fontSize: 12, fontFamily: Fonts.regular },
+  segmentRow: { flexDirection: 'row', gap: Space.sm },
   segment: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 10,
+    paddingVertical: Space.md,
     alignItems: 'center',
   },
-  segmentLabel: { fontSize: 14, fontWeight: '600' },
-  submitError: { fontSize: 13, textAlign: 'center' },
+  segmentLabel: { fontSize: 14, fontFamily: Fonts.semiBold },
+  submitError: { fontSize: 13, textAlign: 'center', fontFamily: Fonts.regular },
   saveButton: {
-    borderRadius: 24,
-    paddingVertical: 14,
+    borderRadius: Radius.pill,
+    paddingVertical: Space.lg,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: Space.sm,
   },
-  saveButtonLabel: { fontSize: 16, fontWeight: '700' },
+  saveButtonLabel: { fontSize: 16, fontFamily: Fonts.bold },
 });

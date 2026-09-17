@@ -1,21 +1,31 @@
 import { StyleSheet, Text, View } from 'react-native';
-import type { ThemeColors } from '@/constants/theme';
+import { Radius, Space, type ThemeColors } from '@/constants/theme';
+import { Fonts } from '@/constants/typography';
+import { useElevation } from '@/hooks/useThemeColors';
 
 interface StatCardProps {
   label: string;
   value: string;
   colors: ThemeColors;
+  /** Overrides the value text color, e.g. colors.mileageGood/mileageBad. */
+  valueColor?: string;
 }
 
-export function StatCard({ label, value, colors }: StatCardProps) {
+export function StatCard({ label, value, colors, valueColor }: StatCardProps) {
+  const elevation = useElevation('level1');
+
   return (
     <View
       style={[
         styles.card,
-        { backgroundColor: colors.surface, borderColor: colors.border },
+        { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+        elevation,
       ]}
     >
-      <Text style={[styles.value, { color: colors.text }]} numberOfLines={1}>
+      <Text
+        style={[styles.value, { color: valueColor ?? colors.text }]}
+        numberOfLines={1}
+      >
         {value}
       </Text>
       <Text style={[styles.label, { color: colors.textMuted }]} numberOfLines={1}>
@@ -28,17 +38,19 @@ export function StatCard({ label, value, colors }: StatCardProps) {
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    gap: 4,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.sm,
+    gap: Space.xs,
   },
   value: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: Fonts.bold,
+    fontVariant: ['tabular-nums'],
   },
   label: {
     fontSize: 12,
+    fontFamily: Fonts.regular,
   },
 });

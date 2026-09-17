@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { ThemeColors } from '@/constants/theme';
+import { Radius, Space, type ThemeColors } from '@/constants/theme';
+import { Fonts } from '@/constants/typography';
 import type { Vehicle } from '@/types';
 
 interface VehicleSelectorProps {
@@ -103,7 +104,7 @@ export function VehicleSelector({
                       styles.dropdownRowLabel,
                       {
                         color: item.id === selectedId ? colors.tint : colors.text,
-                        fontWeight: item.id === selectedId ? '700' : '400',
+                        fontFamily: item.id === selectedId ? Fonts.bold : Fonts.regular,
                       },
                     ]}
                   >
@@ -128,40 +129,40 @@ export function VehicleSelector({
 const styles = StyleSheet.create({
   tabRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: Space.sm,
   },
   tab: {
     flex: 1,
-    borderRadius: 20,
+    borderRadius: Radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: Space.sm,
+    paddingHorizontal: Space.md,
     alignItems: 'center',
   },
   tabLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: Fonts.semiBold,
   },
   dropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
   },
   dropdownLabel: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: Fonts.semiBold,
   },
   backdrop: {
     flex: 1,
     justifyContent: 'center',
-    padding: 32,
+    padding: Space.xxl,
   },
   dropdownList: {
-    borderRadius: 14,
+    borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     maxHeight: 320,
     overflow: 'hidden',
@@ -170,11 +171,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: Space.lg,
+    paddingHorizontal: Space.lg,
   },
   dropdownRowLabel: {
     fontSize: 15,
+    fontFamily: Fonts.regular,
   },
   separator: {
     height: StyleSheet.hairlineWidth,

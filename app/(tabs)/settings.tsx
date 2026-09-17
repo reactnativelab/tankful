@@ -1,5 +1,8 @@
 import { ReactNode, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Radius, Space } from '@/constants/theme';
+import { Fonts } from '@/constants/typography';
 import { useSettings, type DistanceUnit } from '@/hooks/useSettings';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
@@ -12,6 +15,7 @@ const DISTANCE_UNIT_OPTIONS: { value: DistanceUnit; label: string }[] = [
 
 export default function SettingsScreen() {
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const { currencySymbol, distanceUnit, fuelUnit, setCurrencySymbol, setDistanceUnit } =
     useSettings();
 
@@ -22,7 +26,7 @@ export default function SettingsScreen() {
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + Space.md }]}
     >
       <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
 
@@ -142,42 +146,43 @@ function Section({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 16, gap: 24, paddingBottom: 48 },
-  title: { fontSize: 22, fontWeight: '800' },
-  section: { gap: 10 },
+  content: { padding: Space.lg, gap: Space.xl, paddingBottom: 48 },
+  title: { fontSize: 22, fontFamily: Fonts.extraBold },
+  section: { gap: Space.md },
   sectionTitle: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: Fonts.semiBold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.sm },
   chip: {
-    borderRadius: 20,
+    borderRadius: Radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: Space.sm,
+    paddingHorizontal: Space.lg,
     alignItems: 'center',
   },
   wideChip: { flex: 1 },
-  chipLabel: { fontSize: 15, fontWeight: '600' },
+  chipLabel: { fontSize: 15, fontFamily: Fonts.semiBold },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderRadius: Radius.md,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
     fontSize: 15,
+    fontFamily: Fonts.regular,
   },
   staticRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
     opacity: 0.7,
   },
-  staticRowLabel: { fontSize: 15, fontWeight: '600' },
-  staticRowValue: { fontSize: 15, fontWeight: '600' },
+  staticRowLabel: { fontSize: 15, fontFamily: Fonts.semiBold },
+  staticRowValue: { fontSize: 15, fontFamily: Fonts.semiBold },
 });

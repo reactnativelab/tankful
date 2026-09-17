@@ -10,10 +10,14 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState } from '@/components/EmptyState';
 import { StatCard } from '@/components/StatCard';
 import { VehicleSelector } from '@/components/VehicleSelector';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { Radius, Space } from '@/constants/theme';
+import { Fonts } from '@/constants/typography';
+import { useElevation, useThemeColors } from '@/hooks/useThemeColors';
 import { useSelectedVehicle } from '@/hooks/useSelectedVehicle';
 import { useSettings } from '@/hooks/useSettings';
 import { useVehicleDashboard } from '@/hooks/useVehicleDashboard';
@@ -23,6 +27,8 @@ import { formatCurrency, formatDate, formatMileage, formatNumber } from '@/utils
 
 export default function HomeScreen() {
   const colors = useThemeColors();
+  const heroElevation = useElevation('level2');
+  const insets = useSafeAreaInsets();
   const { currencySymbol, distanceUnit } = useSettings();
   const { vehicles, loading: vehiclesLoading } = useVehicles();
   const { selectedVehicleId, setSelectedVehicleId } = useSelectedVehicle();
@@ -48,6 +54,15 @@ export default function HomeScreen() {
     Share.share({ message });
   }, [activeVehicle, dashboard.entries, currencySymbol, distanceUnit]);
 
+  const handleFabPress = useCallback(() => {
+    if (!activeVehicle) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    router.push({
+      pathname: '/modals/log-fillup',
+      params: { vehicleId: activeVehicle.id },
+    });
+  }, [activeVehicle]);
+
   if (vehiclesLoading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
@@ -58,7 +73,7 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { paddingTop: insets.top + Space.md }]}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Tankful</Text>
         <Pressable onPress={() => router.push('/modals/vehicle-manager')} hitSlop={8}>
           <Ionicons name="car-outline" size={22} color={colors.text} />
@@ -94,7 +109,8 @@ export default function HomeScreen() {
               <View
                 style={[
                   styles.heroCard,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+                  heroElevation,
                 ]}
               >
                 <Text style={[styles.heroLabel, { color: colors.textMuted }]}>
@@ -162,7 +178,7 @@ export default function HomeScreen() {
                 </View>
 
                 {dashboard.recentEntries.length === 0 ? (
-                  <Text style={{ color: colors.textMuted }}>
+                  <Text style={[styles.emptyHint, { color: colors.textMuted }]}>
                     No fill-ups logged yet.
                   </Text>
                 ) : (
@@ -186,7 +202,7 @@ export default function HomeScreen() {
                         <Text style={[styles.recentDate, { color: colors.text }]}>
                           {formatDate(entry.date)}
                         </Text>
-                        <Text style={{ color: colors.textMuted }}>
+                        <Text style={[styles.tabularText, { color: colors.textMuted }]}>
                           {formatNumber(entry.litresFilled, 2)} L
                         </Text>
                         <Text style={[styles.recentCost, { color: colors.text }]}>
@@ -204,15 +220,11 @@ export default function HomeScreen() {
 
       {activeVehicle && (
         <Pressable
-          onPress={() =>
-            router.push({
-              pathname: '/modals/log-fillup',
-              params: { vehicleId: activeVehicle.id },
-            })
-          }
+          onPress={handleFabPress}
           style={[
             styles.fab,
-            { backgroundColor: colors.tint, shadowColor: colors.shadow },
+            { backgroundColor: colors.tint, bottom: Space.lg + insets.bottom },
+            heroElevation,
           ]}
         >
           <Ionicons name="add" size={20} color={colors.onTint} />
@@ -230,43 +242,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
+    paddingHorizontal: Space.lg,
+    paddingBottom: Space.xs,
   },
-  headerTitle: { fontSize: 20, fontWeight: '800' },
-  scrollContent: { padding: 16, gap: 16, paddingBottom: 96 },
+  headerTitle: { fontSize: 20, fontFamily: Fonts.extraBold },
+  scrollContent: { padding: Space.lg, gap: Space.lg, paddingBottom: 96 },
   dashboardLoading: { paddingVertical: 48, alignItems: 'center' },
   heroCard: {
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: 20,
+    padding: Space.xl,
     alignItems: 'center',
-    gap: 6,
+    gap: Space.sm,
   },
-  heroLabel: { fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 },
-  heroValue: { fontSize: 40, fontWeight: '800' },
-  heroCaption: { fontSize: 13, textAlign: 'center' },
-  statRow: { flexDirection: 'row', gap: 10 },
+  heroLabel: {
+    fontSize: 13,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontFamily: Fonts.semiBold,
+  },
+  heroValue: { fontSize: 40, fontFamily: Fonts.extraBold, fontVariant: ['tabular-nums'] },
+  heroCaption: { fontSize: 13, textAlign: 'center', fontFamily: Fonts.regular },
+  statRow: { flexDirection: 'row', gap: Space.sm },
   shareButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    borderRadius: 12,
+    gap: Space.sm,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 12,
+    paddingVertical: Space.md,
   },
-  shareButtonLabel: { fontSize: 14, fontWeight: '600' },
+  shareButtonLabel: { fontSize: 14, fontFamily: Fonts.semiBold },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: Space.sm,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '700' },
+  sectionTitle: { fontSize: 16, fontFamily: Fonts.bold },
+  emptyHint: { fontFamily: Fonts.regular },
   recentList: {
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
@@ -274,26 +291,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    gap: 8,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
+    gap: Space.sm,
   },
-  recentDate: { fontSize: 14, fontWeight: '600', flex: 1 },
-  recentCost: { fontSize: 14, fontWeight: '600' },
+  recentDate: { fontSize: 14, fontFamily: Fonts.semiBold, flex: 1 },
+  recentCost: { fontSize: 14, fontFamily: Fonts.semiBold, fontVariant: ['tabular-nums'] },
+  tabularText: { fontFamily: Fonts.regular, fontVariant: ['tabular-nums'] },
   fab: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
+    right: Space.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    borderRadius: 28,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    elevation: 4,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    gap: Space.sm,
+    borderRadius: Radius.pill,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.xl,
   },
-  fabLabel: { fontSize: 15, fontWeight: '700' },
+  fabLabel: { fontSize: 15, fontFamily: Fonts.bold },
 });
