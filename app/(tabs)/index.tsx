@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -14,12 +15,15 @@ import { StatCard } from '@/components/StatCard';
 import { VehicleSelector } from '@/components/VehicleSelector';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useSelectedVehicle } from '@/hooks/useSelectedVehicle';
+import { useSettings } from '@/hooks/useSettings';
 import { useVehicleDashboard } from '@/hooks/useVehicleDashboard';
 import { useVehicles } from '@/hooks/useVehicles';
+import { buildMonthlySummary, countFillupsInMonth } from '@/utils/buildMonthlySummary';
 import { formatCurrency, formatDate, formatMileage, formatNumber } from '@/utils/format';
 
 export default function HomeScreen() {
   const colors = useThemeColors();
+  const { currencySymbol, distanceUnit } = useSettings();
   const { vehicles, loading: vehiclesLoading } = useVehicles();
   const { selectedVehicleId, setSelectedVehicleId } = useSelectedVehicle();
 
@@ -29,6 +33,20 @@ export default function HomeScreen() {
   );
 
   const dashboard = useVehicleDashboard(activeVehicle?.id ?? null);
+
+  const monthlyFillupCount = useMemo(
+    () => countFillupsInMonth(dashboard.entries),
+    [dashboard.entries]
+  );
+
+  const handleShareSummary = useCallback(() => {
+    if (!activeVehicle) return;
+    const message = buildMonthlySummary(dashboard.entries, activeVehicle, {
+      currencySymbol,
+      distanceUnit,
+    });
+    Share.share({ message });
+  }, [activeVehicle, dashboard.entries, currencySymbol, distanceUnit]);
 
   if (vehiclesLoading) {
     return (
@@ -83,7 +101,7 @@ export default function HomeScreen() {
                   Current Mileage
                 </Text>
                 <Text style={[styles.heroValue, { color: colors.text }]}>
-                  {formatMileage(dashboard.currentMileage, 'km')}
+                  {formatMileage(dashboard.currentMileage, distanceUnit)}
                 </Text>
                 {dashboard.currentMileage === null && (
                   <Text style={[styles.heroCaption, { color: colors.textMuted }]}>
@@ -95,12 +113,12 @@ export default function HomeScreen() {
               <View style={styles.statRow}>
                 <StatCard
                   label="This Month"
-                  value={formatCurrency(dashboard.monthlySpend)}
+                  value={formatCurrency(dashboard.monthlySpend, currencySymbol)}
                   colors={colors}
                 />
                 <StatCard
                   label="Avg Mileage"
-                  value={formatMileage(dashboard.averageMileage, 'km')}
+                  value={formatMileage(dashboard.averageMileage, distanceUnit)}
                   colors={colors}
                 />
                 <StatCard
@@ -111,6 +129,29 @@ export default function HomeScreen() {
                   colors={colors}
                 />
               </View>
+
+              <Pressable
+                onPress={handleShareSummary}
+                disabled={monthlyFillupCount === 0}
+                style={[
+                  styles.shareButton,
+                  { borderColor: colors.border },
+                ]}
+              >
+                <Ionicons
+                  name="share-social-outline"
+                  size={16}
+                  color={monthlyFillupCount === 0 ? colors.textMuted : colors.tint}
+                />
+                <Text
+                  style={[
+                    styles.shareButtonLabel,
+                    { color: monthlyFillupCount === 0 ? colors.textMuted : colors.tint },
+                  ]}
+                >
+                  Share Monthly Summary
+                </Text>
+              </Pressable>
 
               <Pressable onPress={() => router.push('/history')}>
                 <View style={styles.sectionHeader}>
@@ -149,7 +190,7 @@ export default function HomeScreen() {
                           {formatNumber(entry.litresFilled, 2)} L
                         </Text>
                         <Text style={[styles.recentCost, { color: colors.text }]}>
-                          {formatCurrency(entry.totalCost)}
+                          {formatCurrency(entry.totalCost, currencySymbol)}
                         </Text>
                       </View>
                     ))}
@@ -207,6 +248,16 @@ const styles = StyleSheet.create({
   heroValue: { fontSize: 40, fontWeight: '800' },
   heroCaption: { fontSize: 13, textAlign: 'center' },
   statRow: { flexDirection: 'row', gap: 10 },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 12,
+  },
+  shareButtonLabel: { fontSize: 14, fontWeight: '600' },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',

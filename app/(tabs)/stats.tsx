@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { StatCard } from '@/components/StatCard';
 import { VehicleSelector } from '@/components/VehicleSelector';
 import { useSelectedVehicle } from '@/hooks/useSelectedVehicle';
+import { useSettings } from '@/hooks/useSettings';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useVehicles } from '@/hooks/useVehicles';
 import { useVehicleStats } from '@/hooks/useVehicleStats';
@@ -23,6 +24,7 @@ const CARD_PADDING = 16;
 
 export default function StatsScreen() {
   const colors = useThemeColors();
+  const { currencySymbol, distanceUnit } = useSettings();
   const { width } = useWindowDimensions();
   const { vehicles, loading: vehiclesLoading } = useVehicles();
   const { selectedVehicleId, setSelectedVehicleId } = useSelectedVehicle();
@@ -94,12 +96,12 @@ export default function StatsScreen() {
               <View style={styles.statRow}>
                 <StatCard
                   label="Best Mileage"
-                  value={formatMileage(stats.bestMileage, 'km')}
+                  value={formatMileage(stats.bestMileage, distanceUnit)}
                   colors={colors}
                 />
                 <StatCard
                   label="Worst Mileage"
-                  value={formatMileage(stats.worstMileage, 'km')}
+                  value={formatMileage(stats.worstMileage, distanceUnit)}
                   colors={colors}
                 />
               </View>
@@ -111,7 +113,7 @@ export default function StatsScreen() {
                 />
                 <StatCard
                   label="Total Spend"
-                  value={formatCurrency(stats.totalSpend)}
+                  value={formatCurrency(stats.totalSpend, currencySymbol)}
                   colors={colors}
                 />
               </View>

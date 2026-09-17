@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { addFuelEntry, OdometerValidationError } from '@/db/fuelEntries';
+import { useSettings } from '@/hooks/useSettings';
 import { formatOdometer } from '@/utils/format';
 
 export interface LogFillupFieldErrors {
@@ -30,6 +31,7 @@ function parsePositiveNumber(value: string): number | null {
  * their override.
  */
 export function useLogFillupForm(vehicleId: string | null) {
+  const { distanceUnit } = useSettings();
   const [date, setDate] = useState(() => new Date());
   const [odometer, setOdometer] = useState('');
   const [litresFilled, setLitresFilled] = useState('');
@@ -93,7 +95,7 @@ export function useLogFillupForm(vehicleId: string | null) {
       if (error instanceof OdometerValidationError) {
         setFieldErrors((prev) => ({
           ...prev,
-          odometer: `Must be greater than last reading of ${formatOdometer(error.previousOdometer, 'km')}`,
+          odometer: `Must be greater than last reading of ${formatOdometer(error.previousOdometer, distanceUnit)}`,
         }));
       } else {
         setSubmitError('Something went wrong saving this fill-up. Please try again.');
@@ -102,7 +104,17 @@ export function useLogFillupForm(vehicleId: string | null) {
     } finally {
       setSubmitting(false);
     }
-  }, [vehicleId, date, odometer, litresFilled, pricePerLitre, totalCost, isTankFull, notes]);
+  }, [
+    vehicleId,
+    date,
+    odometer,
+    litresFilled,
+    pricePerLitre,
+    totalCost,
+    isTankFull,
+    notes,
+    distanceUnit,
+  ]);
 
   return {
     date,

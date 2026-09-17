@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { initDatabase } from '@/db';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { SelectedVehicleProvider } from '@/hooks/useSelectedVehicle';
+import { SettingsProvider } from '@/hooks/useSettings';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
 export default function RootLayout() {
@@ -38,24 +39,26 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SelectedVehicleProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="modals/log-fillup"
-            options={{ presentation: 'modal', headerShown: true, title: 'Log Fill-up' }}
-          />
-          <Stack.Screen
-            name="modals/vehicle-manager"
-            options={{ presentation: 'modal', headerShown: true, title: 'Vehicles' }}
-          />
-          <Stack.Screen
-            name="modals/add-edit-vehicle"
-            options={{ presentation: 'modal', headerShown: true, title: 'Vehicle' }}
-          />
-        </Stack>
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-      </SelectedVehicleProvider>
+      <SettingsProvider>
+        <SelectedVehicleProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen
+              name="modals/log-fillup"
+              options={{ presentation: 'modal', headerShown: true, title: 'Log Fill-up' }}
+            />
+            <Stack.Screen
+              name="modals/vehicle-manager"
+              options={{ presentation: 'modal', headerShown: true, title: 'Vehicles' }}
+            />
+            <Stack.Screen
+              name="modals/add-edit-vehicle"
+              options={{ presentation: 'modal', headerShown: true, title: 'Vehicle' }}
+            />
+          </Stack>
+          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        </SelectedVehicleProvider>
+      </SettingsProvider>
     </GestureHandlerRootView>
   );
 }

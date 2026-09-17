@@ -6,12 +6,14 @@ import { HistoryRow } from '@/components/HistoryRow';
 import { VehicleSelector } from '@/components/VehicleSelector';
 import { useFuelEntries } from '@/hooks/useFuelEntries';
 import { useSelectedVehicle } from '@/hooks/useSelectedVehicle';
+import { useSettings } from '@/hooks/useSettings';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useVehicles } from '@/hooks/useVehicles';
 import type { FuelEntry } from '@/types';
 
 export default function HistoryScreen() {
   const colors = useThemeColors();
+  const { currencySymbol, distanceUnit } = useSettings();
   const { vehicles, loading: vehiclesLoading } = useVehicles();
   const { selectedVehicleId, setSelectedVehicleId } = useSelectedVehicle();
 
@@ -83,6 +85,8 @@ export default function HistoryScreen() {
               entry={item}
               mileage={mileageById.get(item.id) ?? null}
               colors={colors}
+              currencySymbol={currencySymbol}
+              distanceUnit={distanceUnit}
               onDelete={removeEntry}
             />
           )}

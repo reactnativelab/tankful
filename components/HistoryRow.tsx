@@ -9,6 +9,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import type { ThemeColors } from '@/constants/theme';
+import type { DistanceUnit } from '@/hooks/useSettings';
 import type { FuelEntry } from '@/types';
 import { formatCurrency, formatDate, formatMileage, formatNumber } from '@/utils/format';
 
@@ -18,6 +19,8 @@ interface HistoryRowProps {
   entry: FuelEntry;
   mileage: number | null;
   colors: ThemeColors;
+  currencySymbol: string;
+  distanceUnit: DistanceUnit;
   onDelete: (id: string) => void;
 }
 
@@ -56,7 +59,14 @@ function DeleteAction({
  * Swipe left reveals a Delete button (rather than deleting on the swipe
  * itself) so an accidental swipe can't remove a fill-up outright.
  */
-export function HistoryRow({ entry, mileage, colors, onDelete }: HistoryRowProps) {
+export function HistoryRow({
+  entry,
+  mileage,
+  colors,
+  currencySymbol,
+  distanceUnit,
+  onDelete,
+}: HistoryRowProps) {
   const swipeableRef = useRef<SwipeableMethods>(null);
 
   return (
@@ -90,9 +100,11 @@ export function HistoryRow({ entry, mileage, colors, onDelete }: HistoryRowProps
         </View>
         <View style={styles.rowEnd}>
           <Text style={[styles.cost, { color: colors.text }]}>
-            {formatCurrency(entry.totalCost)}
+            {formatCurrency(entry.totalCost, currencySymbol)}
           </Text>
-          <Text style={{ color: colors.textMuted }}>{formatMileage(mileage, 'km')}</Text>
+          <Text style={{ color: colors.textMuted }}>
+            {formatMileage(mileage, distanceUnit)}
+          </Text>
         </View>
       </View>
     </Swipeable>
