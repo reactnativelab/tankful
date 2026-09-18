@@ -1,12 +1,11 @@
 import { useCallback } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { EmptyState } from '@/components/EmptyState';
+import { Fab } from '@/components/Fab';
 import { VehicleRow } from '@/components/VehicleRow';
-import { Radius, Space } from '@/constants/theme';
-import { Fonts } from '@/constants/typography';
+import { Space } from '@/constants/theme';
 import { useElevation, useThemeColors } from '@/hooks/useThemeColors';
 import { useVehicleActions } from '@/hooks/useVehicleActions';
 import { useVehicles } from '@/hooks/useVehicles';
@@ -69,16 +68,17 @@ export default function VehicleManagerModal() {
         contentContainerStyle={styles.listContent}
       />
 
-      <Pressable
+      <Fab
+        icon="add"
+        label="Add Vehicle"
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
           router.push('/modals/add-edit-vehicle');
         }}
-        style={[styles.fab, { backgroundColor: colors.tint }, fabElevation]}
-      >
-        <Ionicons name="add" size={20} color={colors.onTint} />
-        <Text style={[styles.fabLabel, { color: colors.onTint }]}>Add Vehicle</Text>
-      </Pressable>
+        bottom={Space.lg}
+        colors={colors}
+        elevation={fabElevation}
+      />
     </View>
   );
 }
@@ -87,16 +87,4 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   listContent: { paddingTop: Space.md, paddingBottom: 96 },
-  fab: {
-    position: 'absolute',
-    right: Space.lg,
-    bottom: Space.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Space.sm,
-    borderRadius: Radius.pill,
-    paddingVertical: Space.md,
-    paddingHorizontal: Space.xl,
-  },
-  fabLabel: { fontSize: 15, fontFamily: Fonts.bold },
 });

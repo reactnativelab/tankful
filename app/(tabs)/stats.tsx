@@ -1,6 +1,5 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
-  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,10 +8,12 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { BarChart, LineChart } from 'react-native-gifted-charts';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { EmptyState } from '@/components/EmptyState';
+import { SkeletonBox } from '@/components/Skeleton';
 import { StatCard } from '@/components/StatCard';
 import { VehicleSelector } from '@/components/VehicleSelector';
-import { Radius, Space } from '@/constants/theme';
+import { Radius, Space, type ThemeColors } from '@/constants/theme';
 import { Fonts } from '@/constants/typography';
 import { useElevation, useThemeColors } from '@/hooks/useThemeColors';
 import { useSelectedVehicle } from '@/hooks/useSelectedVehicle';
@@ -41,10 +42,24 @@ export default function StatsScreen() {
 
   const chartWidth = width - SCREEN_PADDING * 2 - CARD_PADDING * 2;
 
+  // Same first-reveal gating as Home: stats.loading flips on every focus
+  // refetch, so the stagger should only play the first time a vehicle's
+  // stats actually appear.
+  const revealedVehicleIds = useRef<Set<string>>(new Set());
+  const isFirstReveal = !!activeVehicle && !revealedVehicleIds.current.has(activeVehicle.id);
+
+  useEffect(() => {
+    if (!stats.loading && activeVehicle) {
+      revealedVehicleIds.current.add(activeVehicle.id);
+    }
+  }, [stats.loading, activeVehicle]);
+
   if (vehiclesLoading) {
     return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.tint} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.scrollContent}>
+          <StatsSkeleton colors={colors} />
+        </View>
       </View>
     );
   }
@@ -77,9 +92,7 @@ export default function StatsScreen() {
         />
 
         {stats.loading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.tint} />
-          </View>
+          <StatsSkeleton colors={colors} />
         ) : !stats.hasEnoughData ? (
           <EmptyState
             icon="stats-chart-outline"
@@ -97,36 +110,59 @@ export default function StatsScreen() {
           <>
             <View style={styles.statGrid}>
               <View style={styles.statRow}>
-                <StatCard
-                  label="Best Mileage"
-                  value={formatMileage(stats.bestMileage, distanceUnit)}
-                  colors={colors}
-                  valueColor={colors.mileageGood}
-                />
-                <StatCard
-                  label="Worst Mileage"
-                  value={formatMileage(stats.worstMileage, distanceUnit)}
-                  colors={colors}
-                  valueColor={colors.mileageBad}
-                />
+                <Animated.View
+                  style={styles.statCardWrap}
+                  entering={isFirstReveal ? FadeInDown.delay(0).springify().damping(16) : undefined}
+                >
+                  <StatCard
+                    label="Best Mileage"
+                    value={formatMileage(stats.bestMileage, distanceUnit)}
+                    colors={colors}
+                    valueColor={colors.mileageGood}
+                  />
+                </Animated.View>
+                <Animated.View
+                  style={styles.statCardWrap}
+                  entering={isFirstReveal ? FadeInDown.delay(80).springify().damping(16) : undefined}
+                >
+                  <StatCard
+                    label="Worst Mileage"
+                    value={formatMileage(stats.worstMileage, distanceUnit)}
+                    colors={colors}
+                    valueColor={colors.mileageBad}
+                  />
+                </Animated.View>
               </View>
               <View style={styles.statRow}>
-                <StatCard
-                  label="Total Litres"
-                  value={`${formatNumber(stats.totalLitres, 1)} L`}
-                  colors={colors}
-                />
-                <StatCard
-                  label="Total Spend"
-                  value={formatCurrency(stats.totalSpend, currencySymbol)}
-                  colors={colors}
-                />
+                <Animated.View
+                  style={styles.statCardWrap}
+                  entering={isFirstReveal ? FadeInDown.delay(160).springify().damping(16) : undefined}
+                >
+                  <StatCard
+                    label="Total Litres"
+                    value={`${formatNumber(stats.totalLitres, 1)} L`}
+                    colors={colors}
+                  />
+                </Animated.View>
+                <Animated.View
+                  style={styles.statCardWrap}
+                  entering={isFirstReveal ? FadeInDown.delay(240).springify().damping(16) : undefined}
+                >
+                  <StatCard
+                    label="Total Spend"
+                    value={formatCurrency(stats.totalSpend, currencySymbol)}
+                    colors={colors}
+                  />
+                </Animated.View>
               </View>
             </View>
 
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 Mileage Over Time
+              </Text>
+              <Text style={[styles.sectionCaption, { color: colors.textMuted }]}>
+                Calculated between consecutive full-tank fill-ups
               </Text>
               <View
                 style={[
@@ -149,9 +185,11 @@ export default function StatsScreen() {
                     dataPointsColor={colors.tint}
                     startFillColor={colors.tint}
                     endFillColor={colors.tint}
-                    startOpacity={0.15}
+                    startOpacity={0.35}
                     endOpacity={0}
                     areaChart
+                    isAnimated
+                    animationDuration={800}
                     yAxisColor={colors.border}
                     xAxisColor={colors.border}
                     rulesColor={colors.border}
@@ -189,6 +227,8 @@ export default function StatsScreen() {
                   height={180}
                   frontColor={colors.tint}
                   barBorderRadius={4}
+                  isAnimated
+                  animationDuration={800}
                   yAxisColor={colors.border}
                   xAxisColor={colors.border}
                   rulesColor={colors.border}
@@ -211,14 +251,33 @@ export default function StatsScreen() {
   );
 }
 
+function StatsSkeleton({ colors }: { colors: ThemeColors }) {
+  return (
+    <View style={styles.skeletonGroup}>
+      <View style={styles.statRow}>
+        <SkeletonBox colors={colors} height={70} radius={Radius.md} style={styles.statCardWrap} />
+        <SkeletonBox colors={colors} height={70} radius={Radius.md} style={styles.statCardWrap} />
+      </View>
+      <View style={styles.statRow}>
+        <SkeletonBox colors={colors} height={70} radius={Radius.md} style={styles.statCardWrap} />
+        <SkeletonBox colors={colors} height={70} radius={Radius.md} style={styles.statCardWrap} />
+      </View>
+      <SkeletonBox colors={colors} height={228} radius={Radius.lg} />
+      <SkeletonBox colors={colors} height={228} radius={Radius.lg} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },
   scrollContent: { padding: SCREEN_PADDING, gap: Space.lg, paddingBottom: 48 },
+  skeletonGroup: { gap: Space.lg },
   statGrid: { gap: Space.md },
   statRow: { flexDirection: 'row', gap: Space.md },
+  statCardWrap: { flex: 1 },
   section: { gap: Space.sm },
   sectionTitle: { fontSize: 16, fontFamily: Fonts.bold },
+  sectionCaption: { fontSize: 12, fontFamily: Fonts.regular, marginTop: -Space.xs },
   chartCard: {
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,

@@ -1,6 +1,5 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   Share,
@@ -11,12 +10,17 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { EmptyState } from '@/components/EmptyState';
+import { Fab } from '@/components/Fab';
+import { SkeletonBox } from '@/components/Skeleton';
 import { StatCard } from '@/components/StatCard';
 import { VehicleSelector } from '@/components/VehicleSelector';
-import { Radius, Space } from '@/constants/theme';
+import { Radius, Space, type ThemeColors } from '@/constants/theme';
 import { Fonts } from '@/constants/typography';
+import { useCountUp } from '@/hooks/useCountUp';
 import { useElevation, useThemeColors } from '@/hooks/useThemeColors';
 import { useSelectedVehicle } from '@/hooks/useSelectedVehicle';
 import { useSettings } from '@/hooks/useSettings';
@@ -39,6 +43,20 @@ export default function HomeScreen() {
   );
 
   const dashboard = useVehicleDashboard(activeVehicle?.id ?? null);
+  const animatedMileage = useCountUp(dashboard.currentMileage);
+
+  // Stat cards should only stagger in on a vehicle's genuine first reveal,
+  // not on every focus refetch (loading flips true/false each time this
+  // screen regains focus). Keyed per vehicle id so switching vehicles still
+  // gets its own first-reveal animation.
+  const revealedVehicleIds = useRef<Set<string>>(new Set());
+  const isFirstReveal = !!activeVehicle && !revealedVehicleIds.current.has(activeVehicle.id);
+
+  useEffect(() => {
+    if (!dashboard.loading && activeVehicle) {
+      revealedVehicleIds.current.add(activeVehicle.id);
+    }
+  }, [dashboard.loading, activeVehicle]);
 
   const monthlyFillupCount = useMemo(
     () => countFillupsInMonth(dashboard.entries),
@@ -63,14 +81,6 @@ export default function HomeScreen() {
     });
   }, [activeVehicle]);
 
-  if (vehiclesLoading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.tint} />
-      </View>
-    );
-  }
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.headerRow, { paddingTop: insets.top + Space.md }]}>
@@ -80,7 +90,11 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {vehicles.length === 0 ? (
+      {vehiclesLoading ? (
+        <View style={styles.scrollContent}>
+          <HomeSkeleton colors={colors} />
+        </View>
+      ) : vehicles.length === 0 ? (
         <EmptyState
           icon="car-outline"
           message={"Add a vehicle to start logging fill-ups."}
@@ -101,9 +115,7 @@ export default function HomeScreen() {
           />
 
           {dashboard.loading ? (
-            <View style={styles.dashboardLoading}>
-              <ActivityIndicator size="large" color={colors.tint} />
-            </View>
+            <HomeSkeleton colors={colors} />
           ) : (
             <>
               <View
@@ -113,11 +125,17 @@ export default function HomeScreen() {
                   heroElevation,
                 ]}
               >
+                <LinearGradient
+                  colors={[`${colors.tint}33`, `${colors.tint}00`]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
                 <Text style={[styles.heroLabel, { color: colors.textMuted }]}>
                   Current Mileage
                 </Text>
                 <Text style={[styles.heroValue, { color: colors.text }]}>
-                  {formatMileage(dashboard.currentMileage, distanceUnit)}
+                  {formatMileage(animatedMileage, distanceUnit)}
                 </Text>
                 {dashboard.currentMileage === null && (
                   <Text style={[styles.heroCaption, { color: colors.textMuted }]}>
@@ -127,23 +145,38 @@ export default function HomeScreen() {
               </View>
 
               <View style={styles.statRow}>
-                <StatCard
-                  label="This Month"
-                  value={formatCurrency(dashboard.monthlySpend, currencySymbol)}
-                  colors={colors}
-                />
-                <StatCard
-                  label="Avg Mileage"
-                  value={formatMileage(dashboard.averageMileage, distanceUnit)}
-                  colors={colors}
-                />
-                <StatCard
-                  label="Last Fill-up"
-                  value={
-                    dashboard.lastEntry ? formatDate(dashboard.lastEntry.date) : '—'
-                  }
-                  colors={colors}
-                />
+                <Animated.View
+                  style={styles.statCardWrap}
+                  entering={isFirstReveal ? FadeInDown.delay(0).springify().damping(16) : undefined}
+                >
+                  <StatCard
+                    label="This Month"
+                    value={formatCurrency(dashboard.monthlySpend, currencySymbol)}
+                    colors={colors}
+                  />
+                </Animated.View>
+                <Animated.View
+                  style={styles.statCardWrap}
+                  entering={isFirstReveal ? FadeInDown.delay(80).springify().damping(16) : undefined}
+                >
+                  <StatCard
+                    label="Avg Mileage"
+                    value={formatMileage(dashboard.averageMileage, distanceUnit)}
+                    colors={colors}
+                  />
+                </Animated.View>
+                <Animated.View
+                  style={styles.statCardWrap}
+                  entering={isFirstReveal ? FadeInDown.delay(160).springify().damping(16) : undefined}
+                >
+                  <StatCard
+                    label="Last Fill-up"
+                    value={
+                      dashboard.lastEntry ? formatDate(dashboard.lastEntry.date) : '—'
+                    }
+                    colors={colors}
+                  />
+                </Animated.View>
               </View>
 
               <Pressable
@@ -219,25 +252,36 @@ export default function HomeScreen() {
       )}
 
       {activeVehicle && (
-        <Pressable
+        <Fab
+          icon="add"
+          label="Log Fill-up"
           onPress={handleFabPress}
-          style={[
-            styles.fab,
-            { backgroundColor: colors.tint, bottom: Space.lg + insets.bottom },
-            heroElevation,
-          ]}
-        >
-          <Ionicons name="add" size={20} color={colors.onTint} />
-          <Text style={[styles.fabLabel, { color: colors.onTint }]}>Log Fill-up</Text>
-        </Pressable>
+          bottom={Space.lg + insets.bottom}
+          colors={colors}
+          elevation={heroElevation}
+        />
       )}
+    </View>
+  );
+}
+
+function HomeSkeleton({ colors }: { colors: ThemeColors }) {
+  return (
+    <View style={styles.skeletonGroup}>
+      <SkeletonBox colors={colors} height={140} radius={Radius.lg} />
+      <View style={styles.statRow}>
+        <SkeletonBox colors={colors} height={64} radius={Radius.md} style={styles.statCardWrap} />
+        <SkeletonBox colors={colors} height={64} radius={Radius.md} style={styles.statCardWrap} />
+        <SkeletonBox colors={colors} height={64} radius={Radius.md} style={styles.statCardWrap} />
+      </View>
+      <SkeletonBox colors={colors} height={20} width={160} radius={4} />
+      <SkeletonBox colors={colors} height={140} radius={Radius.md} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -247,13 +291,14 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 20, fontFamily: Fonts.extraBold },
   scrollContent: { padding: Space.lg, gap: Space.lg, paddingBottom: 96 },
-  dashboardLoading: { paddingVertical: 48, alignItems: 'center' },
+  skeletonGroup: { gap: Space.lg },
   heroCard: {
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     padding: Space.xl,
     alignItems: 'center',
     gap: Space.sm,
+    overflow: 'hidden',
   },
   heroLabel: {
     fontSize: 13,
@@ -264,6 +309,7 @@ const styles = StyleSheet.create({
   heroValue: { fontSize: 40, fontFamily: Fonts.extraBold, fontVariant: ['tabular-nums'] },
   heroCaption: { fontSize: 13, textAlign: 'center', fontFamily: Fonts.regular },
   statRow: { flexDirection: 'row', gap: Space.sm },
+  statCardWrap: { flex: 1 },
   shareButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -298,15 +344,4 @@ const styles = StyleSheet.create({
   recentDate: { fontSize: 14, fontFamily: Fonts.semiBold, flex: 1 },
   recentCost: { fontSize: 14, fontFamily: Fonts.semiBold, fontVariant: ['tabular-nums'] },
   tabularText: { fontFamily: Fonts.regular, fontVariant: ['tabular-nums'] },
-  fab: {
-    position: 'absolute',
-    right: Space.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Space.sm,
-    borderRadius: Radius.pill,
-    paddingVertical: Space.md,
-    paddingHorizontal: Space.xl,
-  },
-  fabLabel: { fontSize: 15, fontFamily: Fonts.bold },
 });
