@@ -14,6 +14,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import { EmptyState } from '@/components/EmptyState';
+import { InfoTooltip } from '@/components/InfoTooltip';
 import { Radius, Space, type ThemeColors } from '@/constants/theme';
 import { Fonts } from '@/constants/typography';
 import { useLogFillupForm } from '@/hooks/useLogFillupForm';
@@ -175,7 +176,13 @@ function LogFillupFormView({
         </FormField>
 
         <View style={styles.switchRow}>
-          <Text style={[styles.switchLabel, { color: colors.text }]}>Full Tank?</Text>
+          <View style={styles.switchLabelRow}>
+            <Text style={[styles.switchLabel, { color: colors.text }]}>Full Tank?</Text>
+            <InfoTooltip
+              text="Only full-tank fill-ups are used to calculate mileage -- a partial fill breaks the litres-per-distance math, so it's skipped."
+              colors={colors}
+            />
+          </View>
           <Switch
             value={form.isTankFull}
             onValueChange={form.setIsTankFull}
@@ -260,6 +267,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: Space.xs,
   },
+  switchLabelRow: { flexDirection: 'row', alignItems: 'center', gap: Space.xs },
   switchLabel: { fontSize: 15, fontFamily: Fonts.semiBold },
   submitError: { fontSize: 13, textAlign: 'center', fontFamily: Fonts.regular },
   saveButton: {

@@ -33,3 +33,16 @@ export function initDatabase(): Promise<void> {
   }
   return migrationsPromise;
 }
+
+/**
+ * Deletes every row from both tables -- all vehicles and all fuel entries.
+ * Row-level delete rather than drop/recreate so it doesn't need to re-run
+ * migrations afterwards. Does not touch AsyncStorage settings (currency,
+ * units, theme, hasSeenOnboarding); this is a data reset, not a factory
+ * reset.
+ */
+export async function resetAllData(): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM fuel_entries;');
+  await db.runAsync('DELETE FROM vehicles;');
+}

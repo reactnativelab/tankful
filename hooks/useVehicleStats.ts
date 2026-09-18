@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useFuelEntries } from '@/hooks/useFuelEntries';
 import {
   calculateBestMileage,
+  calculateCostPerDistance,
   calculateMonthlySpendSeries,
   calculateTotalLitres,
   calculateTotalSpend,
@@ -22,6 +23,8 @@ export interface VehicleStatsData {
   worstMileage: number | null;
   totalLitres: number;
   totalSpend: number;
+  /** All-time spend / distance traveled. Null if fewer than 2 entries. */
+  costPerDistance: number | null;
   /** Per-fill-up mileage, oldest -> newest, skipping entries with no computable value. */
   mileageSeries: MileagePoint[];
   /** Last 6 calendar months of spend, oldest -> newest, including ₹0 months. */
@@ -65,6 +68,7 @@ export function useVehicleStats(vehicleId: string | null): VehicleStatsData {
       worstMileage: calculateWorstMileage(mileageValues),
       totalLitres: calculateTotalLitres(entries),
       totalSpend: calculateTotalSpend(entries),
+      costPerDistance: calculateCostPerDistance(entries),
       mileageSeries,
       monthlySpendSeries: calculateMonthlySpendSeries(entries, new Date()),
     };

@@ -2,16 +2,23 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useState 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type DistanceUnit = 'km' | 'mi';
+export type ThemeOverride = 'system' | 'light' | 'dark';
 
 interface StoredSettings {
   currencySymbol: string;
   distanceUnit: DistanceUnit;
   fuelUnit: 'L';
+  themeOverride: ThemeOverride;
+  hasSeenOnboarding: boolean;
 }
 
 interface SettingsContextValue extends StoredSettings {
+  /** False until the AsyncStorage-persisted settings have loaded (or a first-launch read has resolved to defaults). */
+  settingsLoaded: boolean;
   setCurrencySymbol: (symbol: string) => void;
   setDistanceUnit: (unit: DistanceUnit) => void;
+  setThemeOverride: (override: ThemeOverride) => void;
+  setHasSeenOnboarding: (seen: boolean) => void;
 }
 
 const STORAGE_KEY = 'tankful:settings';
@@ -20,6 +27,8 @@ const DEFAULT_SETTINGS: StoredSettings = {
   currencySymbol: '₹',
   distanceUnit: 'km',
   fuelUnit: 'L',
+  themeOverride: 'system',
+  hasSeenOnboarding: false,
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -28,18 +37,26 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
  * Same shape as SelectedVehicleProvider: renders with hardcoded defaults
  * immediately, then swaps in the AsyncStorage-persisted values once the
  * async load resolves (a one-frame flash is an acceptable tradeoff here).
+ * `settingsLoaded` lets callers that need the real hasSeenOnboarding/theme
+ * value (onboarding routing, theme resolution) wait for that swap instead
+ * of briefly acting on defaults.
  */
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<StoredSettings>(DEFAULT_SETTINGS);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((raw) => {
-        if (!raw) return;
-        setSettings((prev) => ({ ...prev, ...JSON.parse(raw) }));
+        if (raw) {
+          setSettings((prev) => ({ ...prev, ...JSON.parse(raw) }));
+        }
       })
       .catch((error) => {
         console.error('Failed to load settings', error);
+      })
+      .finally(() => {
+        setSettingsLoaded(true);
       });
   }, []);
 
@@ -71,9 +88,38 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     [persist]
   );
 
+  const setThemeOverride = useCallback(
+    (themeOverride: ThemeOverride) => {
+      setSettings((prev) => {
+        const next = { ...prev, themeOverride };
+        persist(next);
+        return next;
+      });
+    },
+    [persist]
+  );
+
+  const setHasSeenOnboarding = useCallback(
+    (hasSeenOnboarding: boolean) => {
+      setSettings((prev) => {
+        const next = { ...prev, hasSeenOnboarding };
+        persist(next);
+        return next;
+      });
+    },
+    [persist]
+  );
+
   return (
     <SettingsContext.Provider
-      value={{ ...settings, setCurrencySymbol, setDistanceUnit }}
+      value={{
+        ...settings,
+        settingsLoaded,
+        setCurrencySymbol,
+        setDistanceUnit,
+        setThemeOverride,
+        setHasSeenOnboarding,
+      }}
     >
       {children}
     </SettingsContext.Provider>

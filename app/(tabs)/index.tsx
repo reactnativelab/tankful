@@ -153,6 +153,7 @@ export default function HomeScreen() {
                     label="This Month"
                     value={formatCurrency(dashboard.monthlySpend, currencySymbol)}
                     colors={colors}
+                    trend={dashboard.spendTrend}
                   />
                 </Animated.View>
                 <Animated.View

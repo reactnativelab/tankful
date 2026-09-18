@@ -155,6 +155,23 @@ export default function StatsScreen() {
                   />
                 </Animated.View>
               </View>
+              <View style={styles.statRow}>
+                <Animated.View
+                  style={styles.statCardWrap}
+                  entering={isFirstReveal ? FadeInDown.delay(320).springify().damping(16) : undefined}
+                >
+                  <StatCard
+                    label={`Cost / ${distanceUnit}`}
+                    value={
+                      stats.costPerDistance !== null
+                        ? `${formatCurrency(stats.costPerDistance, currencySymbol)}`
+                        : '—'
+                    }
+                    colors={colors}
+                  />
+                </Animated.View>
+                <View style={styles.statCardWrap} />
+              </View>
             </View>
 
             <View style={styles.section}>
