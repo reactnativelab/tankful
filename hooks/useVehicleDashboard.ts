@@ -1,6 +1,4 @@
-import { useCallback, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { getFuelEntriesByVehicle } from '@/db/fuelEntries';
+import { useFuelEntries } from '@/hooks/useFuelEntries';
 import {
   calculateAverageMileage,
   calculateMileageForEntry,
@@ -14,6 +12,9 @@ import type { FuelEntry } from '@/types';
 
 export interface VehicleDashboardData {
   loading: boolean;
+  /** Set when the entries read failed; render an error state, not the empty state. */
+  error: Error | null;
+  retry: () => Promise<void>;
   /** All entries for the vehicle, newest first. */
   entries: FuelEntry[];
   /** Most recent calculable per-fill-up mileage (not the average). */
@@ -40,37 +41,22 @@ function getMostRecentMileage(entriesOldestFirst: FuelEntry[]): number | null {
 }
 
 /**
- * Fetches a vehicle's fuel entries and derives the stats the Home dashboard
- * needs. Refetches on every focus so it stays fresh after logging a
- * fill-up or adding a vehicle in a modal. `vehicleId` of null yields empty data.
+ * Derives the stats the Home dashboard needs from the shared store's entries
+ * for the vehicle, which the store keeps fresh after logging a fill-up or
+ * adding a vehicle in a modal. `vehicleId` of null yields empty data.
  */
 export function useVehicleDashboard(
   vehicleId: string | null
 ): VehicleDashboardData {
-  const [entries, setEntries] = useState<FuelEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const refresh = useCallback(async () => {
-    if (!vehicleId) {
-      setEntries([]);
-      return;
-    }
-    const data = await getFuelEntriesByVehicle(vehicleId);
-    setEntries(data);
-  }, [vehicleId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      refresh().finally(() => setLoading(false));
-    }, [refresh])
-  );
+  const { loading, error, retry, entries } = useFuelEntries(vehicleId);
 
   const entriesOldestFirst = [...entries].reverse();
   const now = new Date();
 
   return {
     loading,
+    error,
+    retry,
     entries,
     currentMileage: getMostRecentMileage(entriesOldestFirst),
     averageMileage: calculateAverageMileage(entriesOldestFirst),

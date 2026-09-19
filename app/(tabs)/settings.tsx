@@ -40,7 +40,7 @@ export default function SettingsScreen() {
     setDistanceUnit,
     setThemeOverride,
   } = useSettings();
-  const { vehicles } = useVehicles();
+  const { vehicles, error: vehiclesError, retry: retryVehicles } = useVehicles();
   const { selectedVehicleId } = useSelectedVehicle();
   const { resetAll } = useVehicleActions();
 
@@ -48,7 +48,9 @@ export default function SettingsScreen() {
     () => vehicles.find((v) => v.id === selectedVehicleId) ?? vehicles[0] ?? null,
     [vehicles, selectedVehicleId]
   );
-  const { entries } = useFuelEntries(activeVehicle?.id ?? null);
+  const { entries, error: entriesError, retry: retryEntries } = useFuelEntries(
+    activeVehicle?.id ?? null
+  );
 
   const isPreset = CURRENCY_PRESETS.includes(currencySymbol);
   const [customMode, setCustomMode] = useState(!isPreset);
@@ -263,10 +265,19 @@ export default function SettingsScreen() {
           disabled={exportDisabled}
           colors={colors}
         />
-        {activeVehicle && entries.length === 0 && (
-          <Text style={[styles.hint, { color: colors.textMuted }]}>
-            Log a fill-up for {activeVehicle.name} to enable export.
-          </Text>
+        {vehiclesError || entriesError ? (
+          <Pressable onPress={vehiclesError ? retryVehicles : retryEntries}>
+            <Text style={[styles.hint, { color: colors.danger }]}>
+              Couldn't load your data, so export is unavailable. Tap to try again.
+            </Text>
+          </Pressable>
+        ) : (
+          activeVehicle &&
+          entries.length === 0 && (
+            <Text style={[styles.hint, { color: colors.textMuted }]}>
+              Log a fill-up for {activeVehicle.name} to enable export.
+            </Text>
+          )
         )}
       </Section>
 

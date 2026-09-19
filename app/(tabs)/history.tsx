@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { SectionList, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { EmptyState } from '@/components/EmptyState';
+import { ErrorState } from '@/components/ErrorState';
 import { HistoryRow } from '@/components/HistoryRow';
 import { SkeletonBox } from '@/components/Skeleton';
 import { VehicleSelector } from '@/components/VehicleSelector';
@@ -17,7 +18,12 @@ import { groupEntriesByMonth, type MonthSection } from '@/utils/groupEntriesByMo
 export default function HistoryScreen() {
   const colors = useThemeColors();
   const { currencySymbol, distanceUnit } = useSettings();
-  const { vehicles, loading: vehiclesLoading } = useVehicles();
+  const {
+    vehicles,
+    loading: vehiclesLoading,
+    error: vehiclesError,
+    retry: retryVehicles,
+  } = useVehicles();
   const { selectedVehicleId, setSelectedVehicleId } = useSelectedVehicle();
 
   const activeVehicle = useMemo(
@@ -25,9 +31,14 @@ export default function HistoryScreen() {
     [vehicles, selectedVehicleId]
   );
 
-  const { loading: entriesLoading, entries, mileageById, removeEntry } = useFuelEntries(
-    activeVehicle?.id ?? null
-  );
+  const {
+    loading: entriesLoading,
+    error: entriesError,
+    retry: retryEntries,
+    entries,
+    mileageById,
+    removeEntry,
+  } = useFuelEntries(activeVehicle?.id ?? null);
 
   const sections = useMemo(() => groupEntriesByMonth(entries), [entries]);
 
@@ -37,6 +48,14 @@ export default function HistoryScreen() {
         <View style={styles.listContent}>
           <HistorySkeleton colors={colors} />
         </View>
+      </View>
+    );
+  }
+
+  if (vehiclesError) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <ErrorState what="vehicles" onRetry={retryVehicles} colors={colors} />
       </View>
     );
   }
@@ -70,6 +89,8 @@ export default function HistoryScreen() {
         <View style={styles.listContent}>
           <HistorySkeleton colors={colors} />
         </View>
+      ) : entriesError ? (
+        <ErrorState what="fill-ups" onRetry={retryEntries} colors={colors} />
       ) : entries.length === 0 ? (
         <EmptyState
           icon="water-outline"

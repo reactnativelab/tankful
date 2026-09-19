@@ -1,36 +1,26 @@
-import { createContext, ReactNode, useContext, useState } from 'react';
+import { ReactNode } from 'react';
+import { useDataStore } from '@/hooks/useDataStore';
+import { setSelectedVehicleId } from '@/store/dataStore';
 
-interface SelectedVehicleContextValue {
+interface SelectedVehicleValue {
   selectedVehicleId: string | null;
   setSelectedVehicleId: (id: string | null) => void;
 }
 
-const SelectedVehicleContext = createContext<SelectedVehicleContextValue | null>(
-  null
-);
-
 /**
- * Holds the vehicle id selected via VehicleSelector so Dashboard and History
- * (and any other tab) stay in sync instead of tracking selection independently.
+ * The selected vehicle id (set via VehicleSelector) lives in the data store so
+ * the store's own actions can repoint it -- e.g. when the selected vehicle is
+ * deleted. Dashboard, History and any other tab still share it.
  */
-export function SelectedVehicleProvider({ children }: { children: ReactNode }) {
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
-
-  return (
-    <SelectedVehicleContext.Provider
-      value={{ selectedVehicleId, setSelectedVehicleId }}
-    >
-      {children}
-    </SelectedVehicleContext.Provider>
-  );
+export function useSelectedVehicle(): SelectedVehicleValue {
+  const selectedVehicleId = useDataStore((s) => s.selectedVehicleId);
+  return { selectedVehicleId, setSelectedVehicleId };
 }
 
-export function useSelectedVehicle(): SelectedVehicleContextValue {
-  const ctx = useContext(SelectedVehicleContext);
-  if (!ctx) {
-    throw new Error(
-      'useSelectedVehicle must be used within a SelectedVehicleProvider'
-    );
-  }
-  return ctx;
+/**
+ * No-op now that selection lives in the store. Kept so app/_layout.tsx doesn't
+ * change in this commit (it's BOOT-001's file); drop it there.
+ */
+export function SelectedVehicleProvider({ children }: { children: ReactNode }) {
+  return <>{children}</>;
 }

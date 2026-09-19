@@ -10,6 +10,7 @@ import { router } from 'expo-router';
 import { BarChart, LineChart } from 'react-native-gifted-charts';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { EmptyState } from '@/components/EmptyState';
+import { ErrorState } from '@/components/ErrorState';
 import { SkeletonBox } from '@/components/Skeleton';
 import { StatCard } from '@/components/StatCard';
 import { VehicleSelector } from '@/components/VehicleSelector';
@@ -30,7 +31,12 @@ export default function StatsScreen() {
   const cardElevation = useElevation('level1');
   const { currencySymbol, distanceUnit } = useSettings();
   const { width } = useWindowDimensions();
-  const { vehicles, loading: vehiclesLoading } = useVehicles();
+  const {
+    vehicles,
+    loading: vehiclesLoading,
+    error: vehiclesError,
+    retry: retryVehicles,
+  } = useVehicles();
   const { selectedVehicleId, setSelectedVehicleId } = useSelectedVehicle();
 
   const activeVehicle = useMemo(
@@ -42,9 +48,9 @@ export default function StatsScreen() {
 
   const chartWidth = width - SCREEN_PADDING * 2 - CARD_PADDING * 2;
 
-  // Same first-reveal gating as Home: stats.loading flips on every focus
-  // refetch, so the stagger should only play the first time a vehicle's
-  // stats actually appear.
+  // Same first-reveal gating as Home: the stagger should only play the first
+  // time a vehicle's stats actually appear. The store no longer flips
+  // stats.loading on refetch, so this is now belt-and-braces (ANIM-001).
   const revealedVehicleIds = useRef<Set<string>>(new Set());
   const isFirstReveal = !!activeVehicle && !revealedVehicleIds.current.has(activeVehicle.id);
 
@@ -60,6 +66,14 @@ export default function StatsScreen() {
         <View style={styles.scrollContent}>
           <StatsSkeleton colors={colors} />
         </View>
+      </View>
+    );
+  }
+
+  if (vehiclesError) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <ErrorState what="vehicles" onRetry={retryVehicles} colors={colors} />
       </View>
     );
   }
@@ -93,6 +107,8 @@ export default function StatsScreen() {
 
         {stats.loading ? (
           <StatsSkeleton colors={colors} />
+        ) : stats.error ? (
+          <ErrorState what="fill-ups" onRetry={stats.retry} colors={colors} />
         ) : !stats.hasEnoughData ? (
           <EmptyState
             icon="stats-chart-outline"

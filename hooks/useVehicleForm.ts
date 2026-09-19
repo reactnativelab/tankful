@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getVehicleById, updateVehicle } from '@/db/vehicles';
+import { getVehicleById } from '@/db/vehicles';
 import { useVehicleActions } from '@/hooks/useVehicleActions';
 import type { FuelType, VehicleType } from '@/types';
 
@@ -11,12 +11,12 @@ const NO_FIELD_ERRORS: VehicleFieldErrors = { name: null };
 
 /**
  * Form state + validation for the Add/Edit Vehicle modal. With a vehicleId
- * it loads and pre-fills that vehicle and saves via updateVehicle; without
- * one it's create mode and saves via useVehicleActions.createVehicle, which
- * also keeps the shared selected vehicle in sync.
+ * it loads and pre-fills that vehicle and saves via useVehicleActions.updateVehicle;
+ * without one it's create mode and saves via useVehicleActions.createVehicle,
+ * which also keeps the shared selected vehicle in sync.
  */
 export function useVehicleForm(vehicleId: string | null) {
-  const { createVehicle } = useVehicleActions();
+  const { createVehicle, updateVehicle } = useVehicleActions();
 
   const [name, setName] = useState('');
   const [type, setType] = useState<VehicleType>('car');
@@ -86,7 +86,7 @@ export function useVehicleForm(vehicleId: string | null) {
     } finally {
       setSubmitting(false);
     }
-  }, [vehicleId, name, type, fuelType, plate, createVehicle]);
+  }, [vehicleId, name, type, fuelType, plate, createVehicle, updateVehicle]);
 
   return {
     loading,

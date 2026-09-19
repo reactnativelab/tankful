@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { EmptyState } from '@/components/EmptyState';
+import { ErrorState } from '@/components/ErrorState';
 import { Fab } from '@/components/Fab';
 import { SkeletonBox } from '@/components/Skeleton';
 import { StatCard } from '@/components/StatCard';
@@ -34,7 +35,12 @@ export default function HomeScreen() {
   const heroElevation = useElevation('level2');
   const insets = useSafeAreaInsets();
   const { currencySymbol, distanceUnit } = useSettings();
-  const { vehicles, loading: vehiclesLoading } = useVehicles();
+  const {
+    vehicles,
+    loading: vehiclesLoading,
+    error: vehiclesError,
+    retry: retryVehicles,
+  } = useVehicles();
   const { selectedVehicleId, setSelectedVehicleId } = useSelectedVehicle();
 
   const activeVehicle = useMemo(
@@ -45,10 +51,10 @@ export default function HomeScreen() {
   const dashboard = useVehicleDashboard(activeVehicle?.id ?? null);
   const animatedMileage = useCountUp(dashboard.currentMileage);
 
-  // Stat cards should only stagger in on a vehicle's genuine first reveal,
-  // not on every focus refetch (loading flips true/false each time this
-  // screen regains focus). Keyed per vehicle id so switching vehicles still
-  // gets its own first-reveal animation.
+  // Stat cards should only stagger in on a vehicle's genuine first reveal.
+  // The store no longer flips `loading` on refetch, so this guard is now
+  // belt-and-braces (revisit with the ANIM-001 cleanup). Keyed per vehicle id
+  // so switching vehicles still gets its own first-reveal animation.
   const revealedVehicleIds = useRef<Set<string>>(new Set());
   const isFirstReveal = !!activeVehicle && !revealedVehicleIds.current.has(activeVehicle.id);
 
@@ -94,6 +100,8 @@ export default function HomeScreen() {
         <View style={styles.scrollContent}>
           <HomeSkeleton colors={colors} />
         </View>
+      ) : vehiclesError ? (
+        <ErrorState what="vehicles" onRetry={retryVehicles} colors={colors} />
       ) : vehicles.length === 0 ? (
         <EmptyState
           icon="car-outline"
@@ -116,6 +124,8 @@ export default function HomeScreen() {
 
           {dashboard.loading ? (
             <HomeSkeleton colors={colors} />
+          ) : dashboard.error ? (
+            <ErrorState what="fill-ups" onRetry={dashboard.retry} colors={colors} />
           ) : (
             <>
               <View style={[styles.heroCard, heroElevation]}>

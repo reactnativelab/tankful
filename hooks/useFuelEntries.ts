@@ -1,45 +1,42 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { deleteFuelEntry, getFuelEntriesByVehicle } from '@/db/fuelEntries';
+import { useCallback, useEffect, useMemo } from 'react';
+import { useDataStore } from '@/hooks/useDataStore';
+import {
+  IDLE_RESOURCE,
+  removeEntry as removeStoreEntry,
+  retainEntries,
+  retryEntries,
+} from '@/store/dataStore';
 import { calculateMileageForEntry } from '@/utils/mileage';
 import type { FuelEntry } from '@/types';
 
+const NO_ENTRIES: FuelEntry[] = [];
+
 export interface FuelEntriesData {
   loading: boolean;
+  /** Set when the read failed; render an error state, not the empty state. */
+  error: Error | null;
   /** Newest first, matching getFuelEntriesByVehicle. */
   entries: FuelEntry[];
   /** Per-entry mileage (or null), keyed by entry id. */
   mileageById: Map<string, number | null>;
-  refresh: () => Promise<void>;
+  retry: () => Promise<void>;
   removeEntry: (id: string) => Promise<void>;
 }
 
 /**
- * Fetches a vehicle's fuel entries for the History list and derives each
- * entry's own mileage against its immediately preceding fill-up.
+ * A vehicle's fuel entries from the shared store, plus each entry's own
+ * mileage against its immediately preceding fill-up.
  * calculateMileageForEntry expects oldest->newest order, so entries are
  * reversed once and walked in a single pass to build an id->mileage map,
  * rather than re-sorting per row.
  */
 export function useFuelEntries(vehicleId: string | null): FuelEntriesData {
-  const [entries, setEntries] = useState<FuelEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const refresh = useCallback(async () => {
-    if (!vehicleId) {
-      setEntries([]);
-      return;
-    }
-    const data = await getFuelEntriesByVehicle(vehicleId);
-    setEntries(data);
-  }, [vehicleId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      refresh().finally(() => setLoading(false));
-    }, [refresh])
+  useEffect(() => (vehicleId ? retainEntries(vehicleId) : undefined), [vehicleId]);
+  const resource = useDataStore((s) =>
+    vehicleId ? (s.entries[vehicleId] ?? IDLE_RESOURCE) : IDLE_RESOURCE
   );
+
+  const entries = resource.data ?? NO_ENTRIES;
 
   const mileageById = useMemo(() => {
     const oldestFirst = [...entries].reverse();
@@ -50,10 +47,24 @@ export function useFuelEntries(vehicleId: string | null): FuelEntriesData {
     return map;
   }, [entries]);
 
-  const removeEntry = useCallback(async (id: string) => {
-    await deleteFuelEntry(id);
-    setEntries((prev) => prev.filter((entry) => entry.id !== id));
-  }, []);
+  const retry = useCallback(async () => {
+    if (vehicleId) await retryEntries(vehicleId);
+  }, [vehicleId]);
 
-  return { loading, entries, mileageById, refresh, removeEntry };
+  const removeEntry = useCallback(
+    async (id: string) => {
+      if (vehicleId) await removeStoreEntry(vehicleId, id);
+    },
+    [vehicleId]
+  );
+
+  return {
+    // With no vehicle there is nothing to load.
+    loading: vehicleId !== null && (resource.status === 'idle' || resource.status === 'loading'),
+    error: resource.error,
+    entries,
+    mileageById,
+    retry,
+    removeEntry,
+  };
 }

@@ -17,6 +17,9 @@ export interface MileagePoint {
 
 export interface VehicleStatsData {
   loading: boolean;
+  /** Set when the entries read failed; render an error state, not the empty state. */
+  error: Error | null;
+  retry: () => Promise<void>;
   /** False when there are fewer than 2 full-tank entries for this vehicle. */
   hasEnoughData: boolean;
   bestMileage: number | null;
@@ -37,7 +40,7 @@ export interface VehicleStatsData {
  * entries a third way.
  */
 export function useVehicleStats(vehicleId: string | null): VehicleStatsData {
-  const { loading, entries, mileageById } = useFuelEntries(vehicleId);
+  const { loading, error, retry, entries, mileageById } = useFuelEntries(vehicleId);
 
   return useMemo(() => {
     const fullTankCount = entries.filter((entry) => entry.isTankFull).length;
@@ -63,6 +66,8 @@ export function useVehicleStats(vehicleId: string | null): VehicleStatsData {
 
     return {
       loading,
+      error,
+      retry,
       hasEnoughData,
       bestMileage: calculateBestMileage(mileageValues),
       worstMileage: calculateWorstMileage(mileageValues),
@@ -72,5 +77,5 @@ export function useVehicleStats(vehicleId: string | null): VehicleStatsData {
       mileageSeries,
       monthlySpendSeries: calculateMonthlySpendSeries(entries, new Date()),
     };
-  }, [loading, entries, mileageById]);
+  }, [loading, error, retry, entries, mileageById]);
 }

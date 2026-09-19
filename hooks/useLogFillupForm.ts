@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { addFuelEntry, OdometerValidationError } from '@/db/fuelEntries';
+import { OdometerValidationError } from '@/db/fuelEntries';
 import { useSettings } from '@/hooks/useSettings';
+import { addEntry } from '@/store/dataStore';
 import { formatOdometer } from '@/utils/format';
 
 export interface LogFillupFieldErrors {
@@ -80,7 +81,7 @@ export function useLogFillupForm(vehicleId: string | null) {
 
     setSubmitting(true);
     try {
-      await addFuelEntry({
+      await addEntry({
         vehicleId,
         date: date.getTime(),
         odometer: odometerValue,

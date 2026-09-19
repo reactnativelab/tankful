@@ -1,27 +1,24 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { getVehicles } from '@/db/vehicles';
+import { useEffect } from 'react';
+import { useDataStore } from '@/hooks/useDataStore';
+import { retainVehicles, retryVehicles } from '@/store/dataStore';
 import type { Vehicle } from '@/types';
 
-/** Vehicle list, refetched whenever the screen regains focus (e.g. after adding one). */
+const NO_VEHICLES: Vehicle[] = [];
+
+/**
+ * Vehicle list from the shared store. The store refetches it after every
+ * vehicle mutation while any screen is mounted, so there is no focus refetch.
+ * `error` is set when the read failed -- screens must show it instead of the
+ * "no vehicles" empty state, which would otherwise be a lie.
+ */
 export function useVehicles() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loading, setLoading] = useState(true);
+  useEffect(() => retainVehicles(), []);
+  const resource = useDataStore((s) => s.vehicles);
 
-  const refresh = useCallback(async () => {
-    const data = await getVehicles();
-    setVehicles(data);
-  }, []);
-
-  useEffect(() => {
-    refresh().finally(() => setLoading(false));
-  }, [refresh]);
-
-  useFocusEffect(
-    useCallback(() => {
-      refresh();
-    }, [refresh])
-  );
-
-  return { vehicles, loading, refresh };
+  return {
+    vehicles: resource.data ?? NO_VEHICLES,
+    loading: resource.status === 'idle' || resource.status === 'loading',
+    error: resource.error,
+    retry: retryVehicles,
+  };
 }

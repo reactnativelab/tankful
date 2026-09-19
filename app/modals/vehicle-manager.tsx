@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { EmptyState } from '@/components/EmptyState';
+import { ErrorState } from '@/components/ErrorState';
 import { Fab } from '@/components/Fab';
 import { VehicleRow } from '@/components/VehicleRow';
 import { Space } from '@/constants/theme';
@@ -14,21 +15,28 @@ import type { Vehicle } from '@/types';
 export default function VehicleManagerModal() {
   const colors = useThemeColors();
   const fabElevation = useElevation('level2');
-  const { vehicles, loading, refresh } = useVehicles();
+  const { vehicles, loading, error, retry } = useVehicles();
   const { removeVehicle } = useVehicleActions();
 
   const handleDelete = useCallback(
     async (id: string) => {
       await removeVehicle(id);
-      await refresh();
     },
-    [removeVehicle, refresh]
+    [removeVehicle]
   );
 
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.tint} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <ErrorState what="vehicles" onRetry={retry} colors={colors} />
       </View>
     );
   }
