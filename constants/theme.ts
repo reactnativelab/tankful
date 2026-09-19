@@ -49,6 +49,8 @@ export interface ThemeColors {
   tabIconDefault: string;
   tabIconSelected: string;
   overlay: string;
+  /** Two-stop diagonal fill for the Home hero card. Both stops are dark/saturated enough that `onTint` text over either one clears WCAG AA -- see the per-stop ratios above the light/dark definitions below. */
+  heroGradient: [string, string];
 }
 
 export const Colors: Record<'light' | 'dark', ThemeColors> = {
@@ -70,6 +72,9 @@ export const Colors: Record<'light' | 'dark', ThemeColors> = {
     tabIconDefault: '#9CA3AF',
     tabIconSelected: amber[700],
     overlay: 'rgba(0,0,0,0.4)',
+    // onTint (#FFFFFF) on #B45309 -> 5.02:1, on #92400E -> 7.09:1 (both AA
+    // text-pass; interpolated stops stay within that range).
+    heroGradient: [amber[700], '#92400E'],
   },
   dark: {
     background: ink.dark[900],
@@ -86,6 +91,9 @@ export const Colors: Record<'light' | 'dark', ThemeColors> = {
     tabIconDefault: '#6B7280',
     tabIconSelected: amber[400],
     overlay: 'rgba(0,0,0,0.6)',
+    // onTint (#211505) on #FBBF24 -> 10.71:1, on #F59E0B -> 8.33:1 (both AA
+    // text-pass; interpolated stops stay within that range).
+    heroGradient: [amber[400], '#F59E0B'],
   },
 };
 

@@ -4,8 +4,10 @@ import { getFuelEntriesByVehicle } from '@/db/fuelEntries';
 import {
   calculateAverageMileage,
   calculateMileageForEntry,
+  calculateMileageTrend,
   calculateMonthlySpend,
   calculateSpendTrend,
+  type MileageTrend,
   type SpendTrend,
 } from '@/utils/mileage';
 import type { FuelEntry } from '@/types';
@@ -20,6 +22,8 @@ export interface VehicleDashboardData {
   monthlySpend: number;
   /** This month's spend vs. last month's. Null if either month has no entries. */
   spendTrend: SpendTrend | null;
+  /** This month's average mileage vs. last month's. Null if either month has no calculable mileage. */
+  mileageTrend: MileageTrend | null;
   /** Same row as entries[0]; kept named for clarity at call sites. */
   lastEntry: FuelEntry | null;
   /** Newest-first, capped at 3, for the dashboard preview list. */
@@ -72,6 +76,7 @@ export function useVehicleDashboard(
     averageMileage: calculateAverageMileage(entriesOldestFirst),
     monthlySpend: calculateMonthlySpend(entries, now.getMonth(), now.getFullYear()),
     spendTrend: calculateSpendTrend(entries, now),
+    mileageTrend: calculateMileageTrend(entries, now),
     lastEntry: entries[0] ?? null,
     recentEntries: entries.slice(0, 3),
   };

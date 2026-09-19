@@ -156,3 +156,62 @@ export function calculateSpendTrend(
     percent: Math.abs(percent),
   };
 }
+
+export interface MileageTrend {
+  direction: 'up' | 'down' | 'flat';
+  /** Absolute percentage change vs. the previous calendar month; pair with `direction`. */
+  percent: number;
+}
+
+/**
+ * Compares referenceDate's calendar month average mileage to the previous
+ * calendar month's, where a fill-up's mileage is attributed to the month of
+ * the *later* fill-up in its full-tank pair (matching calculateMileageForEntry).
+ * `entries` may be in any order. Null if either month has no calculable
+ * mileage values -- not just no entries, since a lone full tank with no full
+ * -tank predecessor still logs an entry but yields nothing to average.
+ */
+export function calculateMileageTrend(
+  entries: FuelEntry[],
+  referenceDate: Date = new Date()
+): MileageTrend | null {
+  const currentMonth = referenceDate.getMonth();
+  const currentYear = referenceDate.getFullYear();
+  const previousDate = new Date(currentYear, currentMonth - 1, 1);
+  const previousMonth = previousDate.getMonth();
+  const previousYear = previousDate.getFullYear();
+
+  const isInMonth = (timestamp: number, month: number, year: number) => {
+    const d = new Date(timestamp);
+    return d.getMonth() === month && d.getFullYear() === year;
+  };
+
+  const oldestFirst = [...entries].sort((a, b) => a.date - b.date);
+  const currentValues: number[] = [];
+  const previousValues: number[] = [];
+
+  for (let i = 1; i < oldestFirst.length; i++) {
+    const mileage = calculateMileageForEntry(oldestFirst, i);
+    if (mileage === null) continue;
+
+    const entryDate = oldestFirst[i].date;
+    if (isInMonth(entryDate, currentMonth, currentYear)) {
+      currentValues.push(mileage);
+    } else if (isInMonth(entryDate, previousMonth, previousYear)) {
+      previousValues.push(mileage);
+    }
+  }
+
+  if (currentValues.length === 0 || previousValues.length === 0) return null;
+
+  const average = (values: number[]) => values.reduce((sum, v) => sum + v, 0) / values.length;
+  const currentAvg = average(currentValues);
+  const previousAvg = average(previousValues);
+  if (previousAvg === 0) return null;
+
+  const percent = ((currentAvg - previousAvg) / previousAvg) * 100;
+  return {
+    direction: percent > 0 ? 'up' : percent < 0 ? 'down' : 'flat',
+    percent: Math.abs(percent),
+  };
+}

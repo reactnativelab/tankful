@@ -118,27 +118,57 @@ export default function HomeScreen() {
             <HomeSkeleton colors={colors} />
           ) : (
             <>
-              <View
-                style={[
-                  styles.heroCard,
-                  { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
-                  heroElevation,
-                ]}
-              >
+              <View style={[styles.heroCard, heroElevation]}>
                 <LinearGradient
-                  colors={[`${colors.tint}33`, `${colors.tint}00`]}
+                  colors={colors.heroGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={StyleSheet.absoluteFill}
                 />
-                <Text style={[styles.heroLabel, { color: colors.textMuted }]}>
+                {dashboard.mileageTrend && (
+                  <View style={[styles.heroTrendBadge, { backgroundColor: colors.surfaceElevated }]}>
+                    <Ionicons
+                      name={
+                        dashboard.mileageTrend.direction === 'flat'
+                          ? 'remove'
+                          : dashboard.mileageTrend.direction === 'up'
+                            ? 'arrow-up'
+                            : 'arrow-down'
+                      }
+                      size={11}
+                      color={
+                        dashboard.mileageTrend.direction === 'flat'
+                          ? colors.textMuted
+                          : dashboard.mileageTrend.direction === 'up'
+                            ? colors.mileageGood
+                            : colors.mileageBad
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.heroTrendLabel,
+                        {
+                          color:
+                            dashboard.mileageTrend.direction === 'flat'
+                              ? colors.textMuted
+                              : dashboard.mileageTrend.direction === 'up'
+                                ? colors.mileageGood
+                                : colors.mileageBad,
+                        },
+                      ]}
+                    >
+                      {dashboard.mileageTrend.percent.toFixed(0)}% vs last month
+                    </Text>
+                  </View>
+                )}
+                <Text style={[styles.heroLabel, { color: colors.onTint }]}>
                   Current Mileage
                 </Text>
-                <Text style={[styles.heroValue, { color: colors.text }]}>
+                <Text style={[styles.heroValue, { color: colors.onTint }]}>
                   {formatMileage(animatedMileage, distanceUnit)}
                 </Text>
                 {dashboard.currentMileage === null && (
-                  <Text style={[styles.heroCaption, { color: colors.textMuted }]}>
+                  <Text style={[styles.heroCaption, { color: colors.onTint }]}>
                     Log 2 full-tank fill-ups to see mileage.
                   </Text>
                 )}
@@ -254,8 +284,8 @@ export default function HomeScreen() {
 
       {activeVehicle && (
         <Fab
-          icon="add"
-          label="Log Fill-up"
+          icon="water"
+          accessibilityLabel="Log Fill-up"
           onPress={handleFabPress}
           bottom={Space.lg + insets.bottom}
           colors={colors}
@@ -295,7 +325,6 @@ const styles = StyleSheet.create({
   skeletonGroup: { gap: Space.lg },
   heroCard: {
     borderRadius: Radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
     padding: Space.xl,
     alignItems: 'center',
     gap: Space.sm,
@@ -309,6 +338,22 @@ const styles = StyleSheet.create({
   },
   heroValue: { fontSize: 40, fontFamily: Fonts.extraBold, fontVariant: ['tabular-nums'] },
   heroCaption: { fontSize: 13, textAlign: 'center', fontFamily: Fonts.regular },
+  heroTrendBadge: {
+    position: 'absolute',
+    top: Space.md,
+    right: Space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: Radius.pill,
+    paddingVertical: 4,
+    paddingHorizontal: Space.sm,
+  },
+  heroTrendLabel: {
+    fontSize: 11,
+    fontFamily: Fonts.semiBold,
+    fontVariant: ['tabular-nums'],
+  },
   statRow: { flexDirection: 'row', gap: Space.sm },
   statCardWrap: { flex: 1 },
   shareButton: {

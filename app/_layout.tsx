@@ -45,15 +45,15 @@ function RootLayoutInner() {
     }
   }, [fontsLoaded, fontError]);
 
-  // Redirect to the one-time onboarding flow on true first launch, once we
-  // actually know hasSeenOnboarding (not just its pre-load default). Gated
-  // on dbReady too so this only fires once the Stack below has actually
-  // mounted -- calling router.replace any earlier has no navigator to act
-  // on yet. Runs once per app start; onboarding's own CTA replaces this
-  // route away.
+  // Redirect to the one-time first-run flow (splash cover -> onboarding) on
+  // true first launch, once we actually know hasSeenOnboarding (not just its
+  // pre-load default). Gated on dbReady too so this only fires once the
+  // Stack below has actually mounted -- calling router.replace any earlier
+  // has no navigator to act on yet. Runs once per app start; splash-cover
+  // hands off to onboarding, whose own CTA replaces the flow away.
   useEffect(() => {
     if (dbReady && settingsLoaded && !hasSeenOnboarding) {
-      router.replace('/onboarding');
+      router.replace('/splash-cover');
     }
   }, [dbReady, settingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -88,6 +88,7 @@ function RootLayoutInner() {
           }}
         >
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="splash-cover" options={{ gestureEnabled: false }} />
           <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
           <Stack.Screen
             name="modals/log-fillup"

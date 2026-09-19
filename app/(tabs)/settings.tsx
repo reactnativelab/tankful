@@ -255,19 +255,14 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title="Export" colors={colors}>
-        <Pressable
+        <ChevronRow
+          icon="download-outline"
+          title={exporting ? 'Exporting…' : 'Export Data (CSV)'}
+          subtitle="Export your fuel history as CSV"
           onPress={handleExportCsv}
           disabled={exportDisabled}
-          style={[
-            styles.actionRow,
-            { backgroundColor: colors.surface, borderColor: colors.border, opacity: exportDisabled ? 0.5 : 1 },
-          ]}
-        >
-          <Ionicons name="download-outline" size={18} color={colors.tint} />
-          <Text style={[styles.actionRowLabel, { color: colors.text }]}>
-            {exporting ? 'Exporting…' : 'Export Data (CSV)'}
-          </Text>
-        </Pressable>
+          colors={colors}
+        />
         {activeVehicle && entries.length === 0 && (
           <Text style={[styles.hint, { color: colors.textMuted }]}>
             Log a fill-up for {activeVehicle.name} to enable export.
@@ -276,18 +271,21 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title="About & Help" colors={colors}>
-        <InfoCard
+        <AccordionRow
           title="What counts as a full tank?"
+          teaser="Full tank rules, mileage calculation..."
           body="Mark a fill-up as a full tank when you fill the tank all the way up. Only full-tank fill-ups anchor a reliable litres-per-distance calculation -- a partial fill leaves the tank's true fuel level unknown, so it's excluded from mileage math (though it's still counted toward total spend and litres)."
           colors={colors}
         />
-        <InfoCard
+        <AccordionRow
           title="How mileage is calculated"
+          teaser="Distance since last fill-up ÷ litres added"
           body="Mileage for a fill-up is the distance since the previous fill-up divided by the litres just added, and only counts when both that fill-up and the one before it were full tanks."
           colors={colors}
         />
-        <InfoCard
+        <AccordionRow
           title="About Tankful"
+          teaser="Log fill-ups, track trends, manage vehicles"
           body="Tankful helps you log fill-ups, track mileage and spend trends, and manage multiple vehicles -- all stored locally on your device."
           colors={colors}
         />
@@ -323,22 +321,79 @@ function Section({
   );
 }
 
-function InfoCard({
+/**
+ * Single-line row with a subtitle and a trailing chevron -- shared visual
+ * shell for the Export CSV action row and each About & Help accordion row.
+ * The chevron rotates via `rotated`; whether that reflects a real
+ * expand/collapse (AccordionRow) or is just a static affordance (Export,
+ * which fires its action directly on tap) is the caller's call.
+ */
+function ChevronRow({
+  icon,
   title,
+  subtitle,
+  onPress,
+  disabled,
+  rotated,
+  colors,
+}: {
+  icon?: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  disabled?: boolean;
+  rotated?: boolean;
+  colors: ReturnType<typeof useThemeColors>;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[
+        styles.chevronRow,
+        { backgroundColor: colors.surface, borderColor: colors.border, opacity: disabled ? 0.5 : 1 },
+      ]}
+    >
+      {icon && <Ionicons name={icon} size={18} color={colors.tint} />}
+      <View style={styles.chevronRowMain}>
+        <Text style={[styles.chevronRowTitle, { color: colors.text }]}>{title}</Text>
+        <Text
+          style={[styles.chevronRowSubtitle, { color: colors.textMuted }]}
+          numberOfLines={rotated ? undefined : 1}
+        >
+          {subtitle}
+        </Text>
+      </View>
+      <Ionicons
+        name="chevron-forward"
+        size={18}
+        color={colors.textMuted}
+        style={rotated ? styles.chevronRotated : undefined}
+      />
+    </Pressable>
+  );
+}
+
+function AccordionRow({
+  title,
+  teaser,
   body,
   colors,
 }: {
   title: string;
+  teaser: string;
   body: string;
   colors: ReturnType<typeof useThemeColors>;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <View
-      style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-    >
-      <Text style={[styles.infoCardTitle, { color: colors.text }]}>{title}</Text>
-      <Text style={[styles.infoCardBody, { color: colors.textMuted }]}>{body}</Text>
-    </View>
+    <ChevronRow
+      title={title}
+      subtitle={open ? body : teaser}
+      rotated={open}
+      onPress={() => setOpen((prev) => !prev)}
+      colors={colors}
+    />
   );
 }
 
@@ -395,12 +450,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: Space.lg,
   },
   actionRowLabel: { fontSize: 15, fontFamily: Fonts.semiBold },
-  infoCard: {
+  chevronRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space.md,
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: Space.lg,
-    gap: Space.xs,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
   },
-  infoCardTitle: { fontSize: 14, fontFamily: Fonts.semiBold },
-  infoCardBody: { fontSize: 13, fontFamily: Fonts.regular, lineHeight: 19 },
+  chevronRowMain: { flex: 1, gap: 2 },
+  chevronRowTitle: { fontSize: 15, fontFamily: Fonts.semiBold },
+  chevronRowSubtitle: { fontSize: 12, fontFamily: Fonts.regular, lineHeight: 17 },
+  chevronRotated: { transform: [{ rotate: '90deg' }] },
 });

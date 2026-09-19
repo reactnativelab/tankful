@@ -19,7 +19,15 @@ import { useSettings } from '@/hooks/useSettings';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
 interface OnboardingPage {
-  icon: keyof typeof Ionicons.glyphMap;
+  /** Single centered icon-in-circle. Mutually exclusive with `icons`. */
+  icon?: keyof typeof Ionicons.glyphMap;
+  /** 2x2 icon grid, used instead of a single icon to suggest a variety of vehicles. */
+  icons?: [
+    keyof typeof Ionicons.glyphMap,
+    keyof typeof Ionicons.glyphMap,
+    keyof typeof Ionicons.glyphMap,
+    keyof typeof Ionicons.glyphMap,
+  ];
   title: string;
   body: string;
 }
@@ -36,7 +44,7 @@ const PAGES: OnboardingPage[] = [
     body: 'Tankful works out your mileage between full tanks and tracks what you spend over time, automatically.',
   },
   {
-    icon: 'car-outline',
+    icons: ['car-outline', 'bicycle-outline', 'car-sport-outline', 'ellipsis-horizontal-outline'],
     title: 'Track multiple vehicles',
     body: 'Add every bike or car you own and switch between them any time. Each one keeps its own history.',
   },
@@ -104,9 +112,22 @@ export default function OnboardingScreen() {
       >
         {PAGES.map((page) => (
           <View key={page.title} style={[styles.page, { width }]}>
-            <View style={[styles.iconCircle, { backgroundColor: colors.surfaceElevated }]}>
-              <Ionicons name={page.icon} size={48} color={colors.tint} />
-            </View>
+            {page.icons ? (
+              <View style={styles.iconGrid}>
+                {page.icons.map((iconName) => (
+                  <View
+                    key={iconName}
+                    style={[styles.iconGridCell, { backgroundColor: colors.surfaceElevated }]}
+                  >
+                    <Ionicons name={iconName} size={28} color={colors.tint} />
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={[styles.iconCircle, { backgroundColor: colors.surfaceElevated }]}>
+                <Ionicons name={page.icon!} size={48} color={colors.tint} />
+              </View>
+            )}
             <Text style={[styles.title, { color: colors.text }]}>{page.title}</Text>
             <Text style={[styles.body, { color: colors.textMuted }]}>{page.body}</Text>
           </View>
@@ -156,6 +177,20 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconGrid: {
+    width: 96,
+    height: 96,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Space.sm,
+  },
+  iconGridCell: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },

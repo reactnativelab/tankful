@@ -70,7 +70,7 @@ export default function VehicleManagerModal() {
 
       <Fab
         icon="add"
-        label="Add Vehicle"
+        accessibilityLabel="Add Vehicle"
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
           router.push('/modals/add-edit-vehicle');

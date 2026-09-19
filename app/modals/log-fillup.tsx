@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import { EmptyState } from '@/components/EmptyState';
@@ -18,6 +19,7 @@ import { InfoTooltip } from '@/components/InfoTooltip';
 import { Radius, Space, type ThemeColors } from '@/constants/theme';
 import { Fonts } from '@/constants/typography';
 import { useLogFillupForm } from '@/hooks/useLogFillupForm';
+import { useSettings } from '@/hooks/useSettings';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { formatDate } from '@/utils/format';
 
@@ -50,6 +52,7 @@ function LogFillupFormView({
   colors: ThemeColors;
 }) {
   const form = useLogFillupForm(vehicleId);
+  const { currencySymbol, distanceUnit, fuelUnit } = useSettings();
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleSave = async () => {
@@ -74,9 +77,11 @@ function LogFillupFormView({
             onPress={() => setShowDatePicker(true)}
             style={[
               styles.input,
+              styles.dateRow,
               { borderColor: colors.border, backgroundColor: colors.surface },
             ]}
           >
+            <Ionicons name="calendar-outline" size={16} color={colors.textMuted} />
             <Text style={[styles.dateText, { color: colors.text }]}>
               {formatDate(form.date.getTime())}
             </Text>
@@ -96,21 +101,13 @@ function LogFillupFormView({
         </FormField>
 
         <FormField label="Odometer Reading" colors={colors} error={form.fieldErrors.odometer}>
-          <TextInput
-            style={[
-              styles.input,
-              styles.inputTabular,
-              {
-                borderColor: form.fieldErrors.odometer ? colors.danger : colors.border,
-                backgroundColor: colors.surface,
-                color: colors.text,
-              },
-            ]}
-            keyboardType="decimal-pad"
+          <AdornedInput
+            colors={colors}
             value={form.odometer}
             onChangeText={form.setOdometer}
             placeholder="0"
-            placeholderTextColor={colors.textMuted}
+            suffix={distanceUnit}
+            error={form.fieldErrors.odometer}
           />
         </FormField>
 
@@ -119,21 +116,13 @@ function LogFillupFormView({
           colors={colors}
           error={form.fieldErrors.litresFilled}
         >
-          <TextInput
-            style={[
-              styles.input,
-              styles.inputTabular,
-              {
-                borderColor: form.fieldErrors.litresFilled ? colors.danger : colors.border,
-                backgroundColor: colors.surface,
-                color: colors.text,
-              },
-            ]}
-            keyboardType="decimal-pad"
+          <AdornedInput
+            colors={colors}
             value={form.litresFilled}
             onChangeText={form.setLitresFilled}
             placeholder="0.00"
-            placeholderTextColor={colors.textMuted}
+            suffix={fuelUnit}
+            error={form.fieldErrors.litresFilled}
           />
         </FormField>
 
@@ -142,36 +131,24 @@ function LogFillupFormView({
           colors={colors}
           error={form.fieldErrors.pricePerLitre}
         >
-          <TextInput
-            style={[
-              styles.input,
-              styles.inputTabular,
-              {
-                borderColor: form.fieldErrors.pricePerLitre ? colors.danger : colors.border,
-                backgroundColor: colors.surface,
-                color: colors.text,
-              },
-            ]}
-            keyboardType="decimal-pad"
+          <AdornedInput
+            colors={colors}
             value={form.pricePerLitre}
             onChangeText={form.setPricePerLitre}
             placeholder="0.00"
-            placeholderTextColor={colors.textMuted}
+            prefix={currencySymbol}
+            error={form.fieldErrors.pricePerLitre}
           />
         </FormField>
 
         <FormField label="Total Cost" colors={colors}>
-          <TextInput
-            style={[
-              styles.input,
-              styles.inputTabular,
-              { borderColor: colors.border, backgroundColor: colors.surface, color: colors.text },
-            ]}
-            keyboardType="decimal-pad"
+          <AdornedInput
+            colors={colors}
             value={form.totalCost}
             onChangeText={form.setTotalCost}
             placeholder="0.00"
-            placeholderTextColor={colors.textMuted}
+            prefix={currencySymbol}
+            trailingIcon="pencil-outline"
           />
         </FormField>
 
@@ -245,6 +222,53 @@ function FormField({
   );
 }
 
+/**
+ * Bordered input row with optional leading prefix (e.g. a currency symbol),
+ * trailing suffix (e.g. a distance/volume unit) and trailing icon (e.g. a
+ * pencil hinting the value is a manually-overridable default). Reused by
+ * every numeric field in this form instead of one-off styling per field.
+ */
+function AdornedInput({
+  colors,
+  value,
+  onChangeText,
+  placeholder,
+  prefix,
+  suffix,
+  trailingIcon,
+  error,
+}: {
+  colors: ThemeColors;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+  prefix?: string;
+  suffix?: string;
+  trailingIcon?: keyof typeof Ionicons.glyphMap;
+  error?: string | null;
+}) {
+  return (
+    <View
+      style={[
+        styles.inputBox,
+        { borderColor: error ? colors.danger : colors.border, backgroundColor: colors.surface },
+      ]}
+    >
+      {prefix && <Text style={[styles.adornmentText, { color: colors.textMuted }]}>{prefix}</Text>}
+      <TextInput
+        style={[styles.adornedTextInput, styles.inputTabular, { color: colors.text }]}
+        keyboardType="decimal-pad"
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+      />
+      {suffix && <Text style={[styles.adornmentText, { color: colors.textMuted }]}>{suffix}</Text>}
+      {trailingIcon && <Ionicons name={trailingIcon} size={16} color={colors.textMuted} />}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: Space.lg, gap: Space.lg, paddingBottom: Space.xxl },
@@ -259,7 +283,24 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
   },
   inputTabular: { fontVariant: ['tabular-nums'] },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: Space.sm },
   dateText: { fontSize: 15, fontFamily: Fonts.regular },
+  inputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.md,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
+  },
+  adornedTextInput: {
+    flex: 1,
+    padding: 0,
+    fontSize: 15,
+    fontFamily: Fonts.regular,
+  },
+  adornmentText: { fontSize: 15, fontFamily: Fonts.medium },
   fieldError: { fontSize: 12, fontFamily: Fonts.regular },
   switchRow: {
     flexDirection: 'row',

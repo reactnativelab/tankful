@@ -11,11 +11,20 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { FUEL_TYPE_OPTIONS, VEHICLE_TYPE_OPTIONS } from '@/constants/vehicleOptions';
 import { Radius, Space, type ThemeColors } from '@/constants/theme';
 import { Fonts } from '@/constants/typography';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useVehicleForm } from '@/hooks/useVehicleForm';
+import type { VehicleType } from '@/types';
+
+/** Mirrors the icon vocabulary already established in onboarding's vehicle-variety grid. */
+const VEHICLE_TYPE_ICONS: Record<VehicleType, keyof typeof Ionicons.glyphMap> = {
+  car: 'car-outline',
+  bike: 'bicycle-outline',
+  other: 'ellipsis-horizontal-outline',
+};
 
 export default function AddEditVehicleModal() {
   const colors = useThemeColors();
@@ -67,6 +76,7 @@ export default function AddEditVehicleModal() {
             value={form.type}
             onChange={form.setType}
             colors={colors}
+            iconFor={(value) => VEHICLE_TYPE_ICONS[value]}
           />
         </FormField>
 
@@ -119,28 +129,36 @@ function SegmentedControl<T extends string>({
   value,
   onChange,
   colors,
+  iconFor,
 }: {
   options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
   colors: ThemeColors;
+  /** When provided, renders larger icon-forward cards (icon above label) instead of plain text pills. */
+  iconFor?: (value: T) => keyof typeof Ionicons.glyphMap;
 }) {
   return (
     <View style={styles.segmentRow}>
       {options.map((option) => {
         const active = option.value === value;
+        const iconName = iconFor?.(option.value);
         return (
           <Pressable
             key={option.value}
             onPress={() => onChange(option.value)}
             style={[
               styles.segment,
+              iconName && styles.segmentIconCard,
               {
                 backgroundColor: active ? colors.tint : colors.surface,
                 borderColor: colors.border,
               },
             ]}
           >
+            {iconName && (
+              <Ionicons name={iconName} size={22} color={active ? colors.onTint : colors.text} />
+            )}
             <Text
               style={[
                 styles.segmentLabel,
@@ -198,6 +216,10 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     paddingVertical: Space.md,
     alignItems: 'center',
+  },
+  segmentIconCard: {
+    paddingVertical: Space.lg,
+    gap: Space.xs,
   },
   segmentLabel: { fontSize: 14, fontFamily: Fonts.semiBold },
   submitError: { fontSize: 13, textAlign: 'center', fontFamily: Fonts.regular },
