@@ -1,81 +1,87 @@
 import { useMemo } from 'react';
-import { useFuelEntries } from '@/hooks/useFuelEntries';
+import { useFuelIntelligence, type FuelIntelligence } from '@/hooks/useFuelIntelligence';
 import {
-  calculateBestMileage,
-  calculateCostPerDistance,
-  calculateMonthlySpendSeries,
-  calculateTotalLitres,
-  calculateTotalSpend,
-  calculateWorstMileage,
-  type MonthlySpend,
-} from '@/utils/mileage';
+  getMonthlySpendSeries,
+  type MonthlySpendPoint,
+  type ObservationTrend,
+} from '@/utils/fuelAnalytics';
+import { describeMileageSeries, describeSpendSeries } from '@/utils/fuelInsights';
+import { buildMonthlyReport, type MonthlyReport } from '@/utils/monthlyReport';
 
 export interface MileagePoint {
   value: number;
   label: string;
 }
 
-export interface VehicleStatsData {
-  loading: boolean;
-  /** Set when the entries read failed; render an error state, not the empty state. */
-  error: Error | null;
-  retry: () => Promise<void>;
-  /** False when there are fewer than 2 full-tank entries for this vehicle. */
+export interface VehicleStatsData extends FuelIntelligence {
+  /**
+   * False when there are fewer than 2 full-tank entries for this vehicle --
+   * the long-standing rule for "mileage can be calculated at all". Spending
+   * and usage figures do not depend on it and are gated separately.
+   */
   hasEnoughData: boolean;
+  /** True once anything at all has been logged for the vehicle. */
+  hasAnyEntries: boolean;
   bestMileage: number | null;
   worstMileage: number | null;
+  averageMileage: number | null;
+  latestMileage: number | null;
+  mileageTrend: ObservationTrend | null;
   totalLitres: number;
   totalSpend: number;
-  /** All-time spend / distance traveled. Null if fewer than 2 entries. */
+  totalDistance: number;
+  /** All-time spend per unit of distance. Null below 2 entries. */
   costPerDistance: number | null;
   /** Per-fill-up mileage, oldest -> newest, skipping entries with no computable value. */
   mileageSeries: MileagePoint[];
-  /** Last 6 calendar months of spend, oldest -> newest, including ₹0 months. */
-  monthlySpendSeries: MonthlySpend[];
+  /** Last 6 calendar months of spend, oldest -> newest, including empty months. */
+  monthlySpendSeries: MonthlySpendPoint[];
+  /** Spoken equivalents of the two charts, for screen readers. */
+  mileageSeriesSummary: string;
+  spendSeriesSummary: string;
+  report: MonthlyReport;
 }
 
 /**
- * Derives the Stats screen's data from the same entries + mileageById that
- * useFuelEntries already computes for History, rather than walking the
- * entries a third way.
+ * The Stats screen's view of the shared fuel intelligence: the same analysis
+ * Home reads, shaped into the series and totals this screen renders.
  */
 export function useVehicleStats(vehicleId: string | null): VehicleStatsData {
-  const { loading, error, retry, entries, mileageById } = useFuelEntries(vehicleId);
+  const intelligence = useFuelIntelligence(vehicleId);
+  const { analysis, vehicleBudget, insights, presentation, insightsEnabled } = intelligence;
 
   return useMemo(() => {
-    const fullTankCount = entries.filter((entry) => entry.isTankFull).length;
-    const hasEnoughData = fullTankCount >= 2;
-
-    const oldestFirst = [...entries].reverse();
-    const mileageValues: number[] = [];
-    const mileageSeries: MileagePoint[] = [];
-
-    oldestFirst.forEach((entry) => {
-      const mileage = mileageById.get(entry.id) ?? null;
-      if (mileage !== null) {
-        mileageValues.push(mileage);
-        mileageSeries.push({
-          value: mileage,
-          label: new Date(entry.date).toLocaleDateString(undefined, {
-            month: 'short',
-            day: 'numeric',
-          }),
-        });
-      }
-    });
+    const mileageSeries = analysis.observations.map((observation) => ({
+      value: observation.mileage,
+      label: new Date(observation.date).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+      }),
+    }));
+    const monthlySpendSeries = getMonthlySpendSeries(analysis);
 
     return {
-      loading,
-      error,
-      retry,
-      hasEnoughData,
-      bestMileage: calculateBestMileage(mileageValues),
-      worstMileage: calculateWorstMileage(mileageValues),
-      totalLitres: calculateTotalLitres(entries),
-      totalSpend: calculateTotalSpend(entries),
-      costPerDistance: calculateCostPerDistance(entries),
+      ...intelligence,
+      hasEnoughData: analysis.fullTankCount >= 2,
+      hasAnyEntries: analysis.entryCount > 0,
+      bestMileage: analysis.bestMileage,
+      worstMileage: analysis.worstMileage,
+      averageMileage: analysis.averageMileage,
+      latestMileage: analysis.latestObservation?.mileage ?? null,
+      mileageTrend: analysis.mileageTrend,
+      totalLitres: analysis.totalLitres,
+      totalSpend: analysis.totalSpend,
+      totalDistance: analysis.totalDistance,
+      costPerDistance: analysis.costPerDistance,
       mileageSeries,
-      monthlySpendSeries: calculateMonthlySpendSeries(entries, new Date()),
+      monthlySpendSeries,
+      mileageSeriesSummary: describeMileageSeries(analysis, presentation),
+      spendSeriesSummary: describeSpendSeries(monthlySpendSeries, presentation),
+      report: buildMonthlyReport(analysis, {
+        budget: vehicleBudget,
+        insight: insights[0] ?? null,
+        includeForecast: insightsEnabled,
+      }),
     };
-  }, [loading, error, retry, entries, mileageById]);
+  }, [intelligence, analysis, vehicleBudget, insights, presentation, insightsEnabled]);
 }

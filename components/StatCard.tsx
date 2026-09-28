@@ -3,7 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Radius, Space, type ThemeColors } from '@/constants/theme';
 import { Fonts } from '@/constants/typography';
 import { useElevation } from '@/hooks/useThemeColors';
-import type { SpendTrend } from '@/utils/mileage';
+import { formatPercent } from '@/utils/format';
+import type { Trend } from '@/utils/fuelAnalytics';
 
 interface StatCardProps {
   label: string;
@@ -11,8 +12,10 @@ interface StatCardProps {
   colors: ThemeColors;
   /** Overrides the value text color, e.g. colors.mileageGood/mileageBad. */
   valueColor?: string;
-  /** Small ↑/↓ + percent indicator shown next to the value, e.g. month-over-month spend change. */
-  trend?: SpendTrend | null;
+  /** Small up/down + percent indicator shown next to the value, e.g. month-over-month spend change. */
+  trend?: Trend | null;
+  /** Read instead of the raw label/value pair; defaults to "<label>: <value>" plus the trend. */
+  accessibilityLabel?: string;
   /** How to color an 'up' trend -- spend going up is bad, so callers using this for spend should pass 'bad'. */
   trendUpMeaning?: 'good' | 'bad';
 }
@@ -24,8 +27,17 @@ export function StatCard({
   valueColor,
   trend,
   trendUpMeaning = 'bad',
+  accessibilityLabel,
 }: StatCardProps) {
   const elevation = useElevation('level1');
+
+  // Announced as one phrase: an arrow glyph and a bare percentage read as
+  // gibberish when the label lands three swipes away from the value.
+  const trendSpoken = trend
+    ? trend.direction === 'flat'
+      ? ', unchanged'
+      : `, ${trend.direction === 'up' ? 'up' : 'down'} ${formatPercent(trend.percent)}`
+    : '';
 
   const trendColor =
     trend && trend.direction !== 'flat'
@@ -36,6 +48,8 @@ export function StatCard({
 
   return (
     <View
+      accessible
+      accessibilityLabel={accessibilityLabel ?? `${label}: ${value}${trendSpoken}`}
       style={[
         styles.card,
         { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
@@ -63,7 +77,7 @@ export function StatCard({
               color={trendColor}
             />
             <Text style={[styles.trendLabel, { color: trendColor }]}>
-              {trend.percent.toFixed(0)}%
+              {formatPercent(trend.percent)}
             </Text>
           </View>
         )}

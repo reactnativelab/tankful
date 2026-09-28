@@ -1,6 +1,37 @@
 import type { FuelEntry } from '@/types';
 
 /**
+ * Per-entry fuel maths. This module owns the primitives only -- what a single
+ * fill-up (or a whole list of them) is worth. Anything that needs a calendar
+ * window lives in utils/fuelAnalytics, which builds on these; there is one
+ * implementation of each rule and everything else consumes it.
+ */
+
+/**
+ * Chronological order, oldest -> newest, which is what every calculation
+ * below expects. `date` is what the user picked, so two fill-ups can share
+ * one; `createdAt` breaks the tie deterministically by insertion order.
+ */
+export function sortEntriesOldestFirst(entries: FuelEntry[]): FuelEntry[] {
+  return [...entries].sort((a, b) => a.date - b.date || a.createdAt - b.createdAt);
+}
+
+/**
+ * Distance covered since the previous fill-up. Unlike mileage this doesn't
+ * care about full tanks -- the odometer moved regardless of how the tank was
+ * filled. Null when there is no previous entry or the reading didn't advance
+ * (which a backdated entry can produce).
+ */
+export function calculateDistanceForEntry(
+  entries: FuelEntry[],
+  index: number
+): number | null {
+  if (index <= 0 || index >= entries.length) return null;
+  const distance = entries[index].odometer - entries[index - 1].odometer;
+  return distance > 0 ? distance : null;
+}
+
+/**
  * Mileage for a single entry requires both it and the chronologically
  * previous entry to be a full tank (partial fills break the litres-per-km
  * math). `entries` must be sorted oldest -> newest; `index` is the entry
@@ -18,8 +49,8 @@ export function calculateMileageForEntry(
   if (!current.isTankFull || !previous.isTankFull) return null;
   if (current.litresFilled <= 0) return null;
 
-  const distance = current.odometer - previous.odometer;
-  if (distance <= 0) return null;
+  const distance = calculateDistanceForEntry(entries, index);
+  if (distance === null) return null;
 
   return distance / current.litresFilled;
 }
@@ -51,47 +82,6 @@ export function calculateWorstMileage(mileageValues: number[]): number | null {
   return Math.min(...mileageValues);
 }
 
-/** Sum of totalCost for entries whose `date` falls in the given month/year. month is 0-11. */
-export function calculateMonthlySpend(
-  entries: FuelEntry[],
-  month: number,
-  year: number
-): number {
-  return entries.reduce((sum, entry) => {
-    const d = new Date(entry.date);
-    if (d.getMonth() === month && d.getFullYear() === year) {
-      return sum + entry.totalCost;
-    }
-    return sum;
-  }, 0);
-}
-
-export interface MonthlySpend {
-  label: string;
-  total: number;
-}
-
-/**
- * Monthly spend for the 6 calendar months ending in referenceDate's month
- * (oldest -> newest), including months with ₹0 spend. Generalizes
- * calculateMonthlySpend to a fixed-length series for the Stats bar chart.
- */
-export function calculateMonthlySpendSeries(
-  entries: FuelEntry[],
-  referenceDate: Date
-): MonthlySpend[] {
-  const months: { month: number; year: number }[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - i, 1);
-    months.push({ month: d.getMonth(), year: d.getFullYear() });
-  }
-
-  return months.map(({ month, year }) => ({
-    label: new Date(year, month, 1).toLocaleDateString(undefined, { month: 'short' }),
-    total: calculateMonthlySpend(entries, month, year),
-  }));
-}
-
 export function calculateTotalSpend(entries: FuelEntry[]): number {
   return entries.reduce((sum, entry) => sum + entry.totalCost, 0);
 }
@@ -101,117 +91,45 @@ export function calculateTotalLitres(entries: FuelEntry[]): number {
 }
 
 /**
- * All-time total spend divided by total distance traveled (last odometer -
- * first odometer, by date). `entries` may be in any order. Null if fewer
- * than 2 entries or the odometer span isn't positive.
+ * Distance actually recorded between fill-ups: the sum of the positive gaps
+ * between consecutive odometer readings. For a clean history this equals
+ * (last reading - first reading); summing the gaps instead means one
+ * out-of-order reading can't drag the whole total negative.
+ * `entries` may be in any order.
+ */
+export function calculateTravelledDistance(entries: FuelEntry[]): number {
+  const oldestFirst = sortEntriesOldestFirst(entries);
+  let distance = 0;
+  for (let i = 1; i < oldestFirst.length; i++) {
+    distance += calculateDistanceForEntry(oldestFirst, i) ?? 0;
+  }
+  return distance;
+}
+
+/**
+ * Money per unit of distance over the whole history.
+ *
+ * The first fill-up is deliberately left out of the numerator: it paid for
+ * the fuel in the tank *before* any of the measured distance was covered, so
+ * counting it would inflate the rate. Every later fill-up replaces fuel burnt
+ * over a gap that is in the denominator, which keeps this figure equal to the
+ * per-month rate aggregated over the same entries.
+ * `entries` may be in any order. Null if fewer than 2 entries or no distance.
  */
 export function calculateCostPerDistance(entries: FuelEntry[]): number | null {
   if (entries.length < 2) return null;
 
-  const oldestFirst = [...entries].sort((a, b) => a.date - b.date);
-  const distance =
-    oldestFirst[oldestFirst.length - 1].odometer - oldestFirst[0].odometer;
-  if (distance <= 0) return null;
-
-  return calculateTotalSpend(entries) / distance;
-}
-
-export interface SpendTrend {
-  direction: 'up' | 'down' | 'flat';
-  /** Absolute percentage change vs. the previous calendar month; pair with `direction`. */
-  percent: number;
-}
-
-/**
- * Compares referenceDate's calendar month spend to the previous calendar
- * month's. Null if either month has no fill-ups logged at all (not just
- * ₹0 spend), since there's nothing meaningful to compare against.
- */
-export function calculateSpendTrend(
-  entries: FuelEntry[],
-  referenceDate: Date = new Date()
-): SpendTrend | null {
-  const currentMonth = referenceDate.getMonth();
-  const currentYear = referenceDate.getFullYear();
-  const previousDate = new Date(currentYear, currentMonth - 1, 1);
-  const previousMonth = previousDate.getMonth();
-  const previousYear = previousDate.getFullYear();
-
-  const isInMonth = (entry: FuelEntry, month: number, year: number) => {
-    const d = new Date(entry.date);
-    return d.getMonth() === month && d.getFullYear() === year;
-  };
-
-  const currentHasData = entries.some((e) => isInMonth(e, currentMonth, currentYear));
-  const previousHasData = entries.some((e) => isInMonth(e, previousMonth, previousYear));
-  if (!currentHasData || !previousHasData) return null;
-
-  const currentSpend = calculateMonthlySpend(entries, currentMonth, currentYear);
-  const previousSpend = calculateMonthlySpend(entries, previousMonth, previousYear);
-  if (previousSpend === 0) return null;
-
-  const percent = ((currentSpend - previousSpend) / previousSpend) * 100;
-  return {
-    direction: percent > 0 ? 'up' : percent < 0 ? 'down' : 'flat',
-    percent: Math.abs(percent),
-  };
-}
-
-export interface MileageTrend {
-  direction: 'up' | 'down' | 'flat';
-  /** Absolute percentage change vs. the previous calendar month; pair with `direction`. */
-  percent: number;
-}
-
-/**
- * Compares referenceDate's calendar month average mileage to the previous
- * calendar month's, where a fill-up's mileage is attributed to the month of
- * the *later* fill-up in its full-tank pair (matching calculateMileageForEntry).
- * `entries` may be in any order. Null if either month has no calculable
- * mileage values -- not just no entries, since a lone full tank with no full
- * -tank predecessor still logs an entry but yields nothing to average.
- */
-export function calculateMileageTrend(
-  entries: FuelEntry[],
-  referenceDate: Date = new Date()
-): MileageTrend | null {
-  const currentMonth = referenceDate.getMonth();
-  const currentYear = referenceDate.getFullYear();
-  const previousDate = new Date(currentYear, currentMonth - 1, 1);
-  const previousMonth = previousDate.getMonth();
-  const previousYear = previousDate.getFullYear();
-
-  const isInMonth = (timestamp: number, month: number, year: number) => {
-    const d = new Date(timestamp);
-    return d.getMonth() === month && d.getFullYear() === year;
-  };
-
-  const oldestFirst = [...entries].sort((a, b) => a.date - b.date);
-  const currentValues: number[] = [];
-  const previousValues: number[] = [];
+  const oldestFirst = sortEntriesOldestFirst(entries);
+  let distance = 0;
+  let cost = 0;
 
   for (let i = 1; i < oldestFirst.length; i++) {
-    const mileage = calculateMileageForEntry(oldestFirst, i);
-    if (mileage === null) continue;
-
-    const entryDate = oldestFirst[i].date;
-    if (isInMonth(entryDate, currentMonth, currentYear)) {
-      currentValues.push(mileage);
-    } else if (isInMonth(entryDate, previousMonth, previousYear)) {
-      previousValues.push(mileage);
-    }
+    const gap = calculateDistanceForEntry(oldestFirst, i);
+    if (gap === null) continue;
+    distance += gap;
+    cost += oldestFirst[i].totalCost;
   }
 
-  if (currentValues.length === 0 || previousValues.length === 0) return null;
-
-  const average = (values: number[]) => values.reduce((sum, v) => sum + v, 0) / values.length;
-  const currentAvg = average(currentValues);
-  const previousAvg = average(previousValues);
-  if (previousAvg === 0) return null;
-
-  const percent = ((currentAvg - previousAvg) / previousAvg) * 100;
-  return {
-    direction: percent > 0 ? 'up' : percent < 0 ? 'down' : 'flat',
-    percent: Math.abs(percent),
-  };
+  if (distance <= 0) return null;
+  return cost / distance;
 }

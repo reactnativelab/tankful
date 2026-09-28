@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { SectionList, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { HistoryRow } from '@/components/HistoryRow';
+import { RefreshNotice } from '@/components/RefreshNotice';
 import { SkeletonBox } from '@/components/Skeleton';
 import { VehicleSelector } from '@/components/VehicleSelector';
 import { Radius, Space, type ThemeColors } from '@/constants/theme';
@@ -17,11 +19,13 @@ import { groupEntriesByMonth, type MonthSection } from '@/utils/groupEntriesByMo
 
 export default function HistoryScreen() {
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const { currencySymbol, distanceUnit } = useSettings();
   const {
     vehicles,
     loading: vehiclesLoading,
     error: vehiclesError,
+    refreshError: vehiclesRefreshError,
     retry: retryVehicles,
   } = useVehicles();
   const { selectedVehicleId, setSelectedVehicleId } = useSelectedVehicle();
@@ -34,6 +38,7 @@ export default function HistoryScreen() {
   const {
     loading: entriesLoading,
     error: entriesError,
+    refreshError: entriesRefreshError,
     retry: retryEntries,
     entries,
     mileageById,
@@ -44,7 +49,9 @@ export default function HistoryScreen() {
 
   if (vehiclesLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View
+      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
+    >
         <View style={styles.listContent}>
           <HistorySkeleton colors={colors} />
         </View>
@@ -54,7 +61,7 @@ export default function HistoryScreen() {
 
   if (vehiclesError) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top }}>
         <ErrorState what="vehicles" onRetry={retryVehicles} colors={colors} />
       </View>
     );
@@ -62,7 +69,7 @@ export default function HistoryScreen() {
 
   if (vehicles.length === 0) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top }}>
         <EmptyState
           icon="car-outline"
           message={"Add a vehicle to start logging fill-ups."}
@@ -75,7 +82,9 @@ export default function HistoryScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View
+      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
+    >
       <View style={styles.header}>
         <VehicleSelector
           vehicles={vehicles}
@@ -84,6 +93,18 @@ export default function HistoryScreen() {
           colors={colors}
         />
       </View>
+
+      {vehiclesRefreshError && (
+        <View style={styles.noticeWrap}>
+          <RefreshNotice what="vehicles" onRetry={retryVehicles} colors={colors} />
+        </View>
+      )}
+
+      {!entriesLoading && !entriesError && entriesRefreshError && (
+        <View style={styles.noticeWrap}>
+          <RefreshNotice what="fill-ups" onRetry={retryEntries} colors={colors} />
+        </View>
+      )}
 
       {entriesLoading ? (
         <View style={styles.listContent}>
@@ -161,6 +182,7 @@ function HistorySkeleton({ colors }: { colors: ThemeColors }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { padding: Space.lg, paddingBottom: Space.sm },
+  noticeWrap: { paddingHorizontal: Space.lg, paddingBottom: Space.sm },
   listContent: { paddingTop: Space.sm, paddingBottom: Space.xl },
   sectionHeader: { paddingHorizontal: Space.lg, paddingVertical: Space.sm },
   sectionHeaderText: {

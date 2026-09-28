@@ -88,6 +88,7 @@ function RootLayoutInner() {
           }}
         >
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="monthly-report" />
           <Stack.Screen name="splash-cover" options={{ gestureEnabled: false }} />
           <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
           <Stack.Screen

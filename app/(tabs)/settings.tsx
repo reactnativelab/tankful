@@ -1,5 +1,14 @@
-import { ReactNode, useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { File, Paths } from 'expo-file-system';
@@ -14,6 +23,8 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { useVehicleActions } from '@/hooks/useVehicleActions';
 import { useVehicles } from '@/hooks/useVehicles';
 import { buildFuelHistoryCsv } from '@/utils/buildFuelHistoryCsv';
+import { formatCurrency } from '@/utils/format';
+import { MAX_BUDGET_AMOUNT } from '@/utils/settingsSchema';
 
 const CURRENCY_PRESETS = ['₹', '$', '€', '£'];
 
@@ -36,9 +47,14 @@ export default function SettingsScreen() {
     distanceUnit,
     fuelUnit,
     themeOverride,
+    vehicleBudgets,
+    insightsEnabled,
     setCurrencySymbol,
     setDistanceUnit,
     setThemeOverride,
+    setVehicleBudget,
+    clearAllVehicleBudgets,
+    setInsightsEnabled,
   } = useSettings();
   const { vehicles, error: vehiclesError, retry: retryVehicles } = useVehicles();
   const { selectedVehicleId } = useSelectedVehicle();
@@ -50,6 +66,57 @@ export default function SettingsScreen() {
   );
   const { entries, error: entriesError, retry: retryEntries } = useFuelEntries(
     activeVehicle?.id ?? null
+  );
+
+  const activeBudget = activeVehicle ? (vehicleBudgets[activeVehicle.id] ?? null) : null;
+  const [budgetInput, setBudgetInput] = useState(
+    activeBudget && activeBudget.amount > 0 ? String(activeBudget.amount) : ''
+  );
+
+  // The field belongs to one vehicle, so it re-seeds when the selection
+  // changes -- and only then, or it would fight the user mid-keystroke.
+  useEffect(() => {
+    const budget = activeVehicle ? vehicleBudgets[activeVehicle.id] : undefined;
+    setBudgetInput(budget && budget.amount > 0 ? String(budget.amount) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeVehicle?.id]);
+
+  const budgetAmount = Number.parseFloat(budgetInput);
+  const hasBudgetAmount = Number.isFinite(budgetAmount) && budgetAmount > 0;
+
+  const handleBudgetChange = useCallback(
+    (text: string) => {
+      // Digits and a single separator only: the value is money, and a stray
+      // letter or second dot would otherwise reach the parser as NaN.
+      const [whole, ...fractions] = text.replace(/[^0-9.]/g, '').split('.');
+      const cleaned = (fractions.length > 0 ? `${whole}.${fractions.join('')}` : whole).slice(0, 12);
+      setBudgetInput(cleaned);
+      if (!activeVehicle) return;
+
+      const amount = Number.parseFloat(cleaned);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setVehicleBudget(activeVehicle.id, null);
+        return;
+      }
+      setVehicleBudget(activeVehicle.id, {
+        amount: Math.min(amount, MAX_BUDGET_AMOUNT),
+        // Typing an amount for the first time switches tracking on; an
+        // explicitly switched-off budget stays off while it is edited.
+        enabled: activeBudget?.enabled ?? true,
+      });
+    },
+    [activeVehicle, activeBudget, setVehicleBudget]
+  );
+
+  const handleBudgetToggle = useCallback(
+    (enabled: boolean) => {
+      if (!activeVehicle || !hasBudgetAmount) return;
+      setVehicleBudget(activeVehicle.id, {
+        amount: Math.min(budgetAmount, MAX_BUDGET_AMOUNT),
+        enabled,
+      });
+    },
+    [activeVehicle, budgetAmount, hasBudgetAmount, setVehicleBudget]
   );
 
   const isPreset = CURRENCY_PRESETS.includes(currencySymbol);
@@ -94,7 +161,7 @@ export default function SettingsScreen() {
   const handleDeleteAll = useCallback(() => {
     Alert.alert(
       'Delete All Data?',
-      "This permanently deletes every vehicle and fill-up you've logged. Currency, unit, and theme settings are kept.",
+      "This permanently deletes every vehicle and fill-up you've logged, along with their monthly budgets. Currency, unit, and theme settings are kept.",
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -114,6 +181,10 @@ export default function SettingsScreen() {
                   style: 'destructive',
                   onPress: async () => {
                     await resetAll();
+                    // Budgets are keyed by vehicle id, so they go with the
+                    // vehicles rather than lingering as unreachable entries.
+                    clearAllVehicleBudgets();
+                    setBudgetInput('');
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
                   },
                 },
@@ -123,7 +194,7 @@ export default function SettingsScreen() {
         },
       ]
     );
-  }, [resetAll]);
+  }, [resetAll, clearAllVehicleBudgets]);
 
   return (
     <ScrollView
@@ -223,6 +294,96 @@ export default function SettingsScreen() {
         >
           <Text style={[styles.staticRowLabel, { color: colors.textMuted }]}>Litres</Text>
           <Text style={[styles.staticRowValue, { color: colors.textMuted }]}>{fuelUnit}</Text>
+        </View>
+      </Section>
+
+      <Section title="Monthly Fuel Budget" colors={colors}>
+        {!activeVehicle ? (
+          <Text style={[styles.hint, { color: colors.textMuted }]}>
+            Add a vehicle to set a fuel budget.
+          </Text>
+        ) : (
+          <>
+            <View
+              style={[
+                styles.budgetField,
+                { borderColor: colors.border, backgroundColor: colors.surface },
+              ]}
+            >
+              <Text style={[styles.budgetSymbol, { color: colors.textMuted }]}>
+                {currencySymbol}
+              </Text>
+              <TextInput
+                style={[styles.budgetInput, { color: colors.text }]}
+                value={budgetInput}
+                onChangeText={handleBudgetChange}
+                keyboardType="decimal-pad"
+                inputMode="decimal"
+                placeholder="No budget set"
+                placeholderTextColor={colors.textMuted}
+                accessibilityLabel={`Monthly fuel budget for ${activeVehicle.name}`}
+                accessibilityHint="Leave empty to remove the budget"
+                maxLength={12}
+              />
+            </View>
+
+            <View
+              style={[
+                styles.switchRow,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.switchRowMain}>
+                <Text style={[styles.switchRowTitle, { color: colors.text }]}>
+                  Track this budget
+                </Text>
+                <Text style={[styles.hint, { color: colors.textMuted }]}>
+                  {hasBudgetAmount
+                    ? `${formatCurrency(Math.min(budgetAmount, MAX_BUDGET_AMOUNT), currencySymbol)} for each calendar month`
+                    : 'Enter an amount to start tracking'}
+                </Text>
+              </View>
+              <Switch
+                value={hasBudgetAmount && (activeBudget?.enabled ?? false)}
+                onValueChange={handleBudgetToggle}
+                disabled={!hasBudgetAmount}
+                accessibilityLabel="Track this budget"
+                trackColor={{ false: colors.border, true: colors.tint }}
+                thumbColor={colors.onTint}
+              />
+            </View>
+
+            <Text style={[styles.hint, { color: colors.textMuted }]}>
+              Budgets are per vehicle and reset with each calendar month. This one applies to{' '}
+              {activeVehicle.name} only.
+            </Text>
+          </>
+        )}
+      </Section>
+
+      <Section title="Fuel Insights" colors={colors}>
+        <View
+          style={[
+            styles.switchRow,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <View style={styles.switchRowMain}>
+            <Text style={[styles.switchRowTitle, { color: colors.text }]}>
+              Show insights and forecasts
+            </Text>
+            <Text style={[styles.hint, { color: colors.textMuted }]}>
+              Observations, month-end estimates and personal records on Home and Stats. Your
+              fill-up history and totals are unaffected.
+            </Text>
+          </View>
+          <Switch
+            value={insightsEnabled}
+            onValueChange={setInsightsEnabled}
+            accessibilityLabel="Show insights and forecasts"
+            trackColor={{ false: colors.border, true: colors.tint }}
+            thumbColor={colors.onTint}
+          />
         </View>
       </Section>
 
@@ -450,7 +611,34 @@ const styles = StyleSheet.create({
   },
   staticRowLabel: { fontSize: 15, fontFamily: Fonts.semiBold },
   staticRowValue: { fontSize: 15, fontFamily: Fonts.semiBold },
-  hint: { fontSize: 12, fontFamily: Fonts.regular },
+  hint: { fontSize: 12, fontFamily: Fonts.regular, lineHeight: 17 },
+  budgetField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.md,
+    paddingHorizontal: Space.lg,
+  },
+  budgetSymbol: { fontSize: 16, fontFamily: Fonts.semiBold },
+  budgetInput: {
+    flex: 1,
+    paddingVertical: Space.md,
+    fontSize: 16,
+    fontFamily: Fonts.semiBold,
+    minHeight: 44,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space.md,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
+  },
+  switchRowMain: { flex: 1, gap: 2 },
+  switchRowTitle: { fontSize: 15, fontFamily: Fonts.semiBold },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,6 +1,6 @@
-import type { DistanceUnit } from '@/hooks/useSettings';
-import type { FuelEntry } from '@/types';
-import { calculateMileageForEntry } from './mileage';
+import type { DistanceUnit, FuelEntry } from '@/types';
+import { mileageUnitLabel } from './format';
+import { calculateMileageForEntry, sortEntriesOldestFirst } from './mileage';
 
 export interface FuelHistoryCsvSettings {
   currencySymbol: string;
@@ -26,7 +26,7 @@ export function buildFuelHistoryCsv(
   entries: FuelEntry[],
   settings: FuelHistoryCsvSettings
 ): string {
-  const mileageUnitLabel = settings.distanceUnit === 'km' ? 'km/l' : 'mi/gal';
+  const unitLabel = mileageUnitLabel(settings.distanceUnit);
   const headers = [
     'Date',
     'Odometer',
@@ -34,11 +34,11 @@ export function buildFuelHistoryCsv(
     `Price/Litre (${settings.currencySymbol})`,
     `Total Cost (${settings.currencySymbol})`,
     'Full Tank',
-    `Mileage (${mileageUnitLabel})`,
+    `Mileage (${unitLabel})`,
     'Notes',
   ];
 
-  const oldestFirst = [...entries].sort((a, b) => a.date - b.date);
+  const oldestFirst = sortEntriesOldestFirst(entries);
 
   const rows = oldestFirst.map((entry, index) => {
     const mileage = calculateMileageForEntry(oldestFirst, index);

@@ -1,69 +1,55 @@
-import { useFuelEntries } from '@/hooks/useFuelEntries';
-import {
-  calculateAverageMileage,
-  calculateMileageForEntry,
-  calculateMileageTrend,
-  calculateMonthlySpend,
-  calculateSpendTrend,
-  type MileageTrend,
-  type SpendTrend,
-} from '@/utils/mileage';
+import { useMemo } from 'react';
+import { useFuelIntelligence, type FuelIntelligence } from '@/hooks/useFuelIntelligence';
 import type { FuelEntry } from '@/types';
+import type { SpendComparison } from '@/utils/fuelAnalytics';
+import { buildMonthlyReport, type MonthlyReport, type ReportComparison } from '@/utils/monthlyReport';
 
-export interface VehicleDashboardData {
-  loading: boolean;
-  /** Set when the entries read failed; render an error state, not the empty state. */
-  error: Error | null;
-  retry: () => Promise<void>;
-  /** All entries for the vehicle, newest first. */
-  entries: FuelEntry[];
+export interface VehicleDashboardData extends FuelIntelligence {
   /** Most recent calculable per-fill-up mileage (not the average). */
   currentMileage: number | null;
   averageMileage: number | null;
+  /** This calendar month to date -- never a rolling 30 days. */
   monthlySpend: number;
-  /** This month's spend vs. last month's. Null if either month has no entries. */
-  spendTrend: SpendTrend | null;
-  /** This month's average mileage vs. last month's. Null if either month has no calculable mileage. */
-  mileageTrend: MileageTrend | null;
+  /** Month-to-date spend against the same days of last month. Null if either month has no fill-ups. */
+  spendTrend: SpendComparison | null;
+  /** This month's average mileage against last month's. Null if either month has none. */
+  mileageTrend: ReportComparison | null;
   /** Same row as entries[0]; kept named for clarity at call sites. */
   lastEntry: FuelEntry | null;
   /** Newest-first, capped at 3, for the dashboard preview list. */
   recentEntries: FuelEntry[];
-}
-
-/** Scans newest -> oldest for the most recent computable mileage value. */
-function getMostRecentMileage(entriesOldestFirst: FuelEntry[]): number | null {
-  for (let i = entriesOldestFirst.length - 1; i >= 1; i--) {
-    const mileage = calculateMileageForEntry(entriesOldestFirst, i);
-    if (mileage !== null) return mileage;
-  }
-  return null;
+  /** This month's report, the same model the report screen and share text use. */
+  report: MonthlyReport;
 }
 
 /**
- * Derives the stats the Home dashboard needs from the shared store's entries
- * for the vehicle, which the store keeps fresh after logging a fill-up or
- * adding a vehicle in a modal. `vehicleId` of null yields empty data.
+ * Home's view of the shared fuel intelligence. It adds no calculations of its
+ * own -- everything here is picked out of the one analysis in
+ * useFuelIntelligence, so Home, Stats and the report can never disagree.
  */
-export function useVehicleDashboard(
-  vehicleId: string | null
-): VehicleDashboardData {
-  const { loading, error, retry, entries } = useFuelEntries(vehicleId);
+export function useVehicleDashboard(vehicleId: string | null): VehicleDashboardData {
+  const intelligence = useFuelIntelligence(vehicleId);
+  const { analysis, vehicleBudget, insights, entries, insightsEnabled } = intelligence;
 
-  const entriesOldestFirst = [...entries].reverse();
-  const now = new Date();
+  const report = useMemo(
+    () =>
+      buildMonthlyReport(analysis, {
+        budget: vehicleBudget,
+        insight: insights[0] ?? null,
+        includeForecast: insightsEnabled,
+      }),
+    [analysis, vehicleBudget, insights, insightsEnabled]
+  );
 
   return {
-    loading,
-    error,
-    retry,
-    entries,
-    currentMileage: getMostRecentMileage(entriesOldestFirst),
-    averageMileage: calculateAverageMileage(entriesOldestFirst),
-    monthlySpend: calculateMonthlySpend(entries, now.getMonth(), now.getFullYear()),
-    spendTrend: calculateSpendTrend(entries, now),
-    mileageTrend: calculateMileageTrend(entries, now),
+    ...intelligence,
+    currentMileage: analysis.latestObservation?.mileage ?? null,
+    averageMileage: analysis.averageMileage,
+    monthlySpend: analysis.currentMonth.spend,
+    spendTrend: analysis.spendComparison,
+    mileageTrend: report.mileageComparison,
     lastEntry: entries[0] ?? null,
     recentEntries: entries.slice(0, 3),
+    report,
   };
 }

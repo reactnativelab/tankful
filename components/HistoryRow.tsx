@@ -100,9 +100,19 @@ export function HistoryRow({
       >
         <View style={styles.rowMain}>
           <Text style={[styles.date, { color: colors.text }]}>{formatDate(entry.date)}</Text>
-          <Text style={[styles.tabularText, { color: colors.textMuted }]}>
-            {formatNumber(entry.litresFilled, 2)} L
-          </Text>
+          <View style={styles.metaRow}>
+            <Text style={[styles.tabularText, { color: colors.textMuted }]}>
+              {formatNumber(entry.litresFilled, 2)} L
+            </Text>
+            {/* Explains the dash in the mileage column: a partial fill can't
+                anchor a litres-per-distance figure, though it still counts
+                towards spending and litres. */}
+            {!entry.isTankFull && (
+              <View style={[styles.partialChip, { borderColor: colors.border }]}>
+                <Text style={[styles.partialLabel, { color: colors.textMuted }]}>Partial</Text>
+              </View>
+            )}
+          </View>
         </View>
         <View style={styles.rowEnd}>
           <Text style={[styles.cost, { color: colors.text }]}>
@@ -129,7 +139,20 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  rowMain: { gap: Space.xs },
+  rowMain: { gap: Space.xs, flex: 1 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: Space.sm },
+  partialChip: {
+    borderRadius: Radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: Space.sm,
+    paddingVertical: 1,
+  },
+  partialLabel: {
+    fontSize: 10,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    fontFamily: Fonts.semiBold,
+  },
   rowEnd: { alignItems: 'flex-end', gap: Space.xs },
   date: { fontSize: 15, fontFamily: Fonts.semiBold },
   cost: { fontSize: 15, fontFamily: Fonts.bold, fontVariant: ['tabular-nums'] },

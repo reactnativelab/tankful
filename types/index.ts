@@ -36,7 +36,39 @@ export type FuelEntryUpdate = Partial<Omit<FuelEntry, 'id' | 'createdAt'>>;
 
 export type DistanceUnit = 'km' | 'mi';
 
+export type FuelUnit = 'L';
+
+export type ThemeOverride = 'system' | 'light' | 'dark';
+
+/**
+ * A vehicle's monthly fuel budget. `enabled` is kept separate from `amount`
+ * so turning the budget off doesn't lose the figure the user set.
+ */
+export interface VehicleBudget {
+  amount: number;
+  enabled: boolean;
+}
+
+/**
+ * Everything persisted under the single AsyncStorage settings key. This is the
+ * canonical shape -- SettingsProvider stores exactly this, and
+ * utils/settingsSchema validates anything read back off the device against it.
+ */
 export interface AppSettings {
   currencySymbol: string;
   distanceUnit: DistanceUnit;
+  fuelUnit: FuelUnit;
+  themeOverride: ThemeOverride;
+  hasSeenOnboarding: boolean;
+  /**
+   * Monthly fuel budgets keyed by vehicle id. Budgets are per vehicle, not
+   * global, because every figure they are shown next to (this month's spend,
+   * the forecast, the report) is scoped to the selected vehicle -- a global
+   * budget beside one vehicle's spend would read as a false "remaining".
+   */
+  vehicleBudgets: Record<string, VehicleBudget>;
+  /** Home's "set a monthly budget" nudge stays dismissed once dismissed. */
+  budgetPromptDismissed: boolean;
+  /** Master switch for the derived intelligence surfaces (insights, forecast, records). */
+  insightsEnabled: boolean;
 }
