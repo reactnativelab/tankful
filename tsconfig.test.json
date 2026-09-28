@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "es2022",
+    "lib": ["es2022"],
+    // Not for any .tsx test file (there are none) -- some utils files still
+    // `import type` a value from a .tsx hook module, and resolving that type
+    // needs a --jsx setting even though it never reaches emitted JS.
+    "jsx": "react-jsx",
+    "module": "node16",
+    "moduleResolution": "node16",
+    "types": ["node"],
+    "paths": { "@/*": ["./*"] },
+    "outDir": ".test-build",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "noEmitOnError": true
+  },
+  // store/createDataStore.ts only -- not store/dataStore.ts, which wires in
+  // the real @/db modules (expo-sqlite/expo-crypto) and must never be part of
+  // this plain-Node compile.
+  "include": ["utils/**/*.ts", "types/**/*.ts", "store/createDataStore.ts"]
+}

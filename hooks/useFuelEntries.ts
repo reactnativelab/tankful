@@ -13,8 +13,10 @@ const NO_ENTRIES: FuelEntry[] = [];
 
 export interface FuelEntriesData {
   loading: boolean;
-  /** Set when the read failed; render an error state, not the empty state. */
+  /** Set when the read failed with nothing loaded; render an error state, not the empty state. */
   error: Error | null;
+  /** Set when a refetch failed over loaded entries; `entries` still holds the last good read. */
+  refreshError: Error | null;
   /** Newest first, matching getFuelEntriesByVehicle. */
   entries: FuelEntry[];
   /** Per-entry mileage (or null), keyed by entry id. */
@@ -61,7 +63,8 @@ export function useFuelEntries(vehicleId: string | null): FuelEntriesData {
   return {
     // With no vehicle there is nothing to load.
     loading: vehicleId !== null && (resource.status === 'idle' || resource.status === 'loading'),
-    error: resource.error,
+    error: resource.status === 'error' ? resource.error : null,
+    refreshError: resource.status === 'ready' ? resource.error : null,
     entries,
     mileageById,
     retry,

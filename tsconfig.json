@@ -11,5 +11,9 @@
   "include": [
     "**/*.ts",
     "**/*.tsx"
+  ],
+  "exclude": [
+    "utils/__tests__",
+    ".test-build"
   ]
 }

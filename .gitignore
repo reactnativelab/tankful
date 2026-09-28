@@ -40,3 +40,6 @@ yarn-error.*
 /ios
 /android
 /audit
+
+# Compiled domain tests (npm test)
+.test-build/
