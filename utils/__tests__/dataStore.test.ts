@@ -326,6 +326,103 @@ test('mutations run one at a time, in the order they were called', async () => {
   release();
 });
 
+test('retryInit: init failure gives db.status error', async () => {
+  const stub = createStubDeps();
+  const deps: DataStoreDeps = {
+    ...stub.deps,
+    initDatabase: async () => {
+      throw new Error('open failed');
+    },
+  };
+  const store = createDataStore(deps);
+
+  await store.retryInit();
+
+  const { db } = store.getState();
+  assert.equal(db.status, 'error');
+  assert.ok(db.error);
+});
+
+test('retryInit: success gives ready and refetches live slices that were in error', async () => {
+  const v1 = vehicleFixture('v1');
+  const stub = createStubDeps({ vehicles: [v1], entries: { v1: [] } });
+  let failInit = true;
+  const deps: DataStoreDeps = {
+    ...stub.deps,
+    initDatabase: async () => {
+      if (failInit) throw new Error('open failed');
+    },
+  };
+  const store = createDataStore(deps);
+
+  // Fail first, with live subscribers on both slices, so both land in 'error'.
+  const releaseVehicles = store.retainVehicles();
+  const releaseEntries = store.retainEntries('v1');
+  await flush();
+  assert.equal(store.getState().db.status, 'error');
+  assert.equal(store.getState().vehicles.status, 'error');
+  assert.equal(store.getState().entries.v1?.status, 'error');
+
+  failInit = false;
+  await store.retryInit();
+
+  const state = store.getState();
+  assert.equal(state.db.status, 'ready');
+  assert.equal(state.vehicles.status, 'ready');
+  assert.deepEqual(state.vehicles.data, [v1]);
+  assert.equal(state.entries.v1?.status, 'ready');
+
+  releaseVehicles();
+  releaseEntries();
+});
+
+test('retryInit: a retry that fails again stays error', async () => {
+  const stub = createStubDeps();
+  const deps: DataStoreDeps = {
+    ...stub.deps,
+    initDatabase: async () => {
+      throw new Error('still broken');
+    },
+  };
+  const store = createDataStore(deps);
+
+  await store.retryInit();
+  assert.equal(store.getState().db.status, 'error');
+
+  await store.retryInit();
+  assert.equal(store.getState().db.status, 'error');
+});
+
+test('retryInit: a double retry while initializing runs init once', async () => {
+  const stub = createStubDeps();
+  let initCalls = 0;
+  const release: { fn: (() => void) | null } = { fn: null };
+  const deps: DataStoreDeps = {
+    ...stub.deps,
+    initDatabase: () =>
+      new Promise<void>((resolve) => {
+        initCalls += 1;
+        release.fn = resolve;
+      }),
+  };
+  const store = createDataStore(deps);
+
+  const first = store.retryInit();
+  await flush();
+  assert.equal(store.getState().db.status, 'initializing');
+
+  const second = store.retryInit();
+  assert.equal(initCalls, 1, 'the second retryInit call must not start a second init');
+
+  assert.ok(release.fn, 'expected the first init to be in flight');
+  release.fn();
+  await first;
+  await second;
+
+  assert.equal(store.getState().db.status, 'ready');
+  assert.equal(initCalls, 1);
+});
+
 test('resetAll clears every slice as soon as it resolves', async () => {
   const v1 = vehicleFixture('v1');
   const stub = createStubDeps({ vehicles: [v1], entries: { v1: [] } });

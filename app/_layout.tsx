@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { InitErrorScreen } from '@/components/InitErrorScreen';
 import { FontFiles, Fonts } from '@/constants/typography';
-import { initDatabase } from '@/db';
-import { SelectedVehicleProvider } from '@/hooks/useSelectedVehicle';
+import { useDataStore } from '@/hooks/useDataStore';
 import { SettingsProvider, useSettings } from '@/hooks/useSettings';
 import { useResolvedColorScheme, useThemeColors } from '@/hooks/useThemeColors';
+import { retryInit } from '@/store/dataStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -25,18 +26,14 @@ export default function RootLayout() {
 }
 
 function RootLayoutInner() {
-  const [dbReady, setDbReady] = useState(false);
+  const dbStatus = useDataStore((s) => s.db.status);
   const [fontsLoaded, fontError] = useFonts(FontFiles);
   const resolvedScheme = useResolvedColorScheme();
   const colors = useThemeColors();
   const { settingsLoaded, hasSeenOnboarding } = useSettings();
 
   useEffect(() => {
-    initDatabase()
-      .then(() => setDbReady(true))
-      .catch((error) => {
-        console.error('Failed to initialize database', error);
-      });
+    void retryInit();
   }, []);
 
   useEffect(() => {
@@ -47,15 +44,15 @@ function RootLayoutInner() {
 
   // Redirect to the one-time first-run flow (splash cover -> onboarding) on
   // true first launch, once we actually know hasSeenOnboarding (not just its
-  // pre-load default). Gated on dbReady too so this only fires once the
+  // pre-load default). Gated on the db too so this only fires once the
   // Stack below has actually mounted -- calling router.replace any earlier
   // has no navigator to act on yet. Runs once per app start; splash-cover
   // hands off to onboarding, whose own CTA replaces the flow away.
   useEffect(() => {
-    if (dbReady && settingsLoaded && !hasSeenOnboarding) {
+    if (dbStatus === 'ready' && settingsLoaded && !hasSeenOnboarding) {
       router.replace('/splash-cover');
     }
-  }, [dbReady, settingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dbStatus, settingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep the native splash screen up until fonts resolve, so there's never a
   // system-font flash before Manrope takes over.
@@ -63,7 +60,14 @@ function RootLayoutInner() {
     return null;
   }
 
-  if (!dbReady || !settingsLoaded) {
+  // Shown regardless of whether settings have finished loading -- a db that
+  // never opened means there's nothing else this tree can usefully render,
+  // settings included. useThemeColors' defaults are fine pre-load.
+  if (dbStatus === 'error') {
+    return <InitErrorScreen onRetry={() => void retryInit()} colors={colors} />;
+  }
+
+  if (dbStatus !== 'ready' || !settingsLoaded) {
     return (
       <View
         style={{
@@ -80,32 +84,30 @@ function RootLayoutInner() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SelectedVehicleProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            headerTitleStyle: { fontFamily: Fonts.bold },
-          }}
-        >
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="monthly-report" />
-          <Stack.Screen name="splash-cover" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
-          <Stack.Screen
-            name="modals/log-fillup"
-            options={{ presentation: 'modal', headerShown: true, title: 'Log Fill-up' }}
-          />
-          <Stack.Screen
-            name="modals/vehicle-manager"
-            options={{ presentation: 'modal', headerShown: true, title: 'Vehicles' }}
-          />
-          <Stack.Screen
-            name="modals/add-edit-vehicle"
-            options={{ presentation: 'modal', headerShown: true, title: 'Vehicle' }}
-          />
-        </Stack>
-        <StatusBar style={resolvedScheme === 'dark' ? 'light' : 'dark'} />
-      </SelectedVehicleProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          headerTitleStyle: { fontFamily: Fonts.bold },
+        }}
+      >
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="monthly-report" />
+        <Stack.Screen name="splash-cover" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+        <Stack.Screen
+          name="modals/log-fillup"
+          options={{ presentation: 'modal', headerShown: true, title: 'Log Fill-up' }}
+        />
+        <Stack.Screen
+          name="modals/vehicle-manager"
+          options={{ presentation: 'modal', headerShown: true, title: 'Vehicles' }}
+        />
+        <Stack.Screen
+          name="modals/add-edit-vehicle"
+          options={{ presentation: 'modal', headerShown: true, title: 'Vehicle' }}
+        />
+      </Stack>
+      <StatusBar style={resolvedScheme === 'dark' ? 'light' : 'dark'} />
     </GestureHandlerRootView>
   );
 }

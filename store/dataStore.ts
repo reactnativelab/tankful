@@ -48,6 +48,7 @@ export const retainVehicles = store.retainVehicles;
 export const retainEntries = store.retainEntries;
 export const retryVehicles = store.retryVehicles;
 export const retryEntries = store.retryEntries;
+export const retryInit = store.retryInit;
 export const setSelectedVehicleId = store.setSelectedVehicleId;
 export const createVehicle = store.createVehicle;
 export const updateVehicle = store.updateVehicle;

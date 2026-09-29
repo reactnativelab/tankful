@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { retryablePromise } from '@/utils/retryablePromise';
 import {
   CREATE_FUEL_ENTRIES_TABLE,
   CREATE_FUEL_ENTRIES_VEHICLE_INDEX,
@@ -6,9 +7,6 @@ import {
 } from './schema';
 
 const DATABASE_NAME = 'tankful.db';
-
-let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-let migrationsPromise: Promise<void> | null = null;
 
 /** Runs once per process: creates tables if missing and enables FK enforcement. */
 async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -18,20 +16,33 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.execAsync(CREATE_FUEL_ENTRIES_VEHICLE_INDEX);
 }
 
+/**
+ * Open + migrate as one memoized attempt (retryablePromise): a rejection --
+ * whether the open itself failed or migrations did -- is not cached, so the
+ * next call starts over. A migration failure additionally best-effort closes
+ * the now-half-open handle (open, but never fully migrated) so a retry
+ * reopens a fresh connection rather than reusing that one; migrations are
+ * CREATE TABLE IF NOT EXISTS, so re-running them on a fresh handle is safe.
+ */
+const openAndMigrate = retryablePromise(async (): Promise<SQLite.SQLiteDatabase> => {
+  const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
+  try {
+    await runMigrations(db);
+  } catch (error) {
+    await db.closeAsync().catch(() => {});
+    throw error;
+  }
+  return db;
+});
+
 /** Singleton DB connection. Safe to call repeatedly; migrations run only once. */
 export function getDatabase(): Promise<SQLite.SQLiteDatabase> {
-  if (!dbPromise) {
-    dbPromise = SQLite.openDatabaseAsync(DATABASE_NAME);
-  }
-  return dbPromise;
+  return openAndMigrate();
 }
 
 /** Awaits DB open + migrations. Call once at app startup before rendering. */
 export function initDatabase(): Promise<void> {
-  if (!migrationsPromise) {
-    migrationsPromise = getDatabase().then(runMigrations);
-  }
-  return migrationsPromise;
+  return openAndMigrate().then(() => undefined);
 }
 
 /**

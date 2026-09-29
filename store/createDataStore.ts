@@ -106,6 +106,13 @@ export interface DataStore {
   /** Manual retry after an error screen; also usable as a plain refetch. Never rejects. */
   retryVehicles: () => Promise<void>;
   retryEntries: (vehicleId: string) => Promise<void>;
+  /**
+   * Retries DB init after a boot-time failure. A no-op while init is already
+   * in flight (a double-tap on the error screen's Retry button shares that
+   * attempt rather than starting a second one). Never rejects. On success,
+   * refetches any slice that is both in 'error' and has a live subscriber.
+   */
+  retryInit: () => Promise<void>;
   setSelectedVehicleId: (id: string | null) => void;
   createVehicle: (data: NewVehicle) => Promise<Vehicle>;
   updateVehicle: (id: string, data: VehicleUpdate) => Promise<Vehicle | null>;
@@ -280,6 +287,36 @@ export function createDataStore(deps: DataStoreDeps): DataStore {
     return loadEntries(vehicleId);
   }
 
+  // A double-tap on the error screen's Retry button while init is already in
+  // flight shares this attempt instead of calling deps.initDatabase() again.
+  let initRetryInFlight: Promise<void> | null = null;
+
+  async function refetchErroredLiveSlices(): Promise<void> {
+    const tasks: Promise<void>[] = [];
+    if (vehicleRefs > 0 && state.vehicles.status === 'error') {
+      tasks.push(loadVehicles());
+    }
+    for (const [vehicleId, refs] of entryRefs) {
+      if (refs > 0 && (state.entries[vehicleId]?.status ?? 'idle') === 'error') {
+        tasks.push(loadEntries(vehicleId));
+      }
+    }
+    await Promise.all(tasks);
+  }
+
+  function retryInit(): Promise<void> {
+    if (state.db.status === 'initializing') {
+      return initRetryInFlight ?? Promise.resolve();
+    }
+    const attempt = ensureDb()
+      .then(refetchErroredLiveSlices)
+      .catch(() => undefined);
+    initRetryInFlight = attempt.finally(() => {
+      initRetryInFlight = null;
+    });
+    return initRetryInFlight;
+  }
+
   function setSelectedVehicleId(id: string | null): void {
     if (state.selectedVehicleId === id) return;
     setState((s) => ({ ...s, selectedVehicleId: id }));
@@ -421,6 +458,7 @@ export function createDataStore(deps: DataStoreDeps): DataStore {
     retainEntries,
     retryVehicles,
     retryEntries,
+    retryInit,
     setSelectedVehicleId,
     createVehicle,
     updateVehicle,
