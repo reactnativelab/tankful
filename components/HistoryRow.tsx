@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import type { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -24,7 +24,7 @@ interface HistoryRowProps {
   colors: ThemeColors;
   currencySymbol: string;
   distanceUnit: DistanceUnit;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
 }
 
 function DeleteAction({
@@ -60,7 +60,9 @@ function DeleteAction({
 
 /**
  * Swipe left reveals a Delete button (rather than deleting on the swipe
- * itself) so an accidental swipe can't remove a fill-up outright.
+ * itself), which then confirms via Alert before deleting -- consistent with
+ * vehicle delete's pattern (VehicleRow) -- since a fill-up can't be undone
+ * once removed.
  */
 export function HistoryRow({
   entry,
@@ -73,6 +75,37 @@ export function HistoryRow({
   const swipeableRef = useRef<SwipeableMethods>(null);
   const elevation = useElevation('level1');
 
+  const confirmDelete = () => {
+    Alert.alert(
+      'Delete Fill-up?',
+      `This will permanently delete the ${formatDate(entry.date)} fill-up (${formatNumber(
+        entry.litresFilled,
+        2
+      )} L). This can't be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => swipeableRef.current?.close() },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            swipeableRef.current?.close();
+            try {
+              await onDelete(entry.id);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            } catch (error) {
+              console.error('Failed to delete fill-up', error);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+              Alert.alert(
+                "Couldn't Delete Fill-up",
+                'Something went wrong deleting this fill-up. Please try again.'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <Swipeable
       ref={swipeableRef}
@@ -80,15 +113,7 @@ export function HistoryRow({
       rightThreshold={40}
       overshootRight={false}
       renderRightActions={(progress) => (
-        <DeleteAction
-          progress={progress}
-          colors={colors}
-          onPress={() => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-            swipeableRef.current?.close();
-            onDelete(entry.id);
-          }}
-        />
+        <DeleteAction progress={progress} colors={colors} onPress={confirmDelete} />
       )}
     >
       <View

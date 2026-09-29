@@ -39,6 +39,9 @@ export class OdometerValidationError extends Error {
   }
 }
 
+// Deliberately not wrapped in a transaction: the odometer check-then-insert
+// here is getting rewritten wholesale for chronology integrity (Group C /
+// BUSINESS-001), so wrapping it now would be redone from scratch anyway.
 export async function addFuelEntry(data: NewFuelEntry): Promise<FuelEntry> {
   const previous = await getLastFuelEntry(data.vehicleId);
   if (previous && data.odometer <= previous.odometer) {

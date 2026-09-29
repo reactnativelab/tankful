@@ -204,3 +204,8 @@ const styles = StyleSheet.create({
   skeletonRowMain: { gap: Space.xs },
   skeletonRowEnd: { gap: Space.xs, alignItems: 'flex-end' },
 });
+
+// Opts this route into expo-router's crash boundary (it wraps a route in
+// `Try` only when the route exports `ErrorBoundary`) -- a render throw here
+// is caught without taking the tab bar or the other tabs down with it.
+export { AppErrorBoundary as ErrorBoundary } from '@/components/AppErrorBoundary';

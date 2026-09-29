@@ -123,6 +123,7 @@ export default function SettingsScreen() {
   const [customMode, setCustomMode] = useState(!isPreset);
   const [customInput, setCustomInput] = useState(isPreset ? '' : currencySymbol);
   const [exporting, setExporting] = useState(false);
+  const [deleteAllStatus, setDeleteAllStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const exportDisabled = !activeVehicle || entries.length === 0 || exporting;
 
@@ -159,6 +160,9 @@ export default function SettingsScreen() {
   }, [activeVehicle, entries, currencySymbol, distanceUnit, exporting]);
 
   const handleDeleteAll = useCallback(() => {
+    // A fresh attempt clears whatever banner the previous one left behind,
+    // rather than the old result lingering next to a brand new confirmation.
+    setDeleteAllStatus('idle');
     Alert.alert(
       'Delete All Data?',
       "This permanently deletes every vehicle and fill-up you've logged, along with their monthly budgets. Currency, unit, and theme settings are kept.",
@@ -180,12 +184,19 @@ export default function SettingsScreen() {
                   text: 'Delete Everything',
                   style: 'destructive',
                   onPress: async () => {
-                    await resetAll();
-                    // Budgets are keyed by vehicle id, so they go with the
-                    // vehicles rather than lingering as unreachable entries.
-                    clearAllVehicleBudgets();
-                    setBudgetInput('');
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+                    try {
+                      await resetAll();
+                      // Budgets are keyed by vehicle id, so they go with the
+                      // vehicles rather than lingering as unreachable entries.
+                      clearAllVehicleBudgets();
+                      setBudgetInput('');
+                      setDeleteAllStatus('success');
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+                    } catch (error) {
+                      console.error('Failed to delete all data', error);
+                      setDeleteAllStatus('error');
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+                    }
                   },
                 },
               ]
@@ -471,6 +482,29 @@ export default function SettingsScreen() {
           <Ionicons name="trash-outline" size={18} color={colors.danger} />
           <Text style={[styles.actionRowLabel, { color: colors.danger }]}>Delete All Data</Text>
         </Pressable>
+
+        {deleteAllStatus === 'success' && (
+          <View
+            style={[styles.statusBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
+            <Ionicons name="checkmark-circle-outline" size={18} color={colors.tint} />
+            <Text style={[styles.statusBannerText, { color: colors.text }]}>
+              All vehicles and fill-ups have been deleted.
+            </Text>
+          </View>
+        )}
+
+        {deleteAllStatus === 'error' && (
+          <Pressable
+            onPress={handleDeleteAll}
+            style={[styles.statusBanner, { backgroundColor: colors.surface, borderColor: colors.danger }]}
+          >
+            <Ionicons name="alert-circle-outline" size={18} color={colors.danger} />
+            <Text style={[styles.statusBannerText, { color: colors.danger }]}>
+              Couldn't delete your data. Nothing was changed. Tap to try again.
+            </Text>
+          </Pressable>
+        )}
       </Section>
     </ScrollView>
   );
@@ -649,6 +683,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: Space.lg,
   },
   actionRowLabel: { fontSize: 15, fontFamily: Fonts.semiBold },
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space.sm,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
+  },
+  statusBannerText: { flex: 1, fontSize: 13, fontFamily: Fonts.regular, lineHeight: 18 },
   chevronRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -663,3 +707,8 @@ const styles = StyleSheet.create({
   chevronRowSubtitle: { fontSize: 12, fontFamily: Fonts.regular, lineHeight: 17 },
   chevronRotated: { transform: [{ rotate: '90deg' }] },
 });
+
+// Opts this route into expo-router's crash boundary (it wraps a route in
+// `Try` only when the route exports `ErrorBoundary`) -- a render throw here
+// is caught without taking the tab bar or the other tabs down with it.
+export { AppErrorBoundary as ErrorBoundary } from '@/components/AppErrorBoundary';

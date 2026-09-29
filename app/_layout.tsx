@@ -111,3 +111,8 @@ function RootLayoutInner() {
     </GestureHandlerRootView>
   );
 }
+
+// Root instance: can catch a throw from inside SettingsProvider itself (it
+// wraps everything else in this tree), so it must not depend on Settings or
+// the store -- see RootAppErrorBoundary's own comment.
+export { RootAppErrorBoundary as ErrorBoundary } from '@/components/AppErrorBoundary';

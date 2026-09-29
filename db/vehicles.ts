@@ -72,13 +72,17 @@ export async function updateVehicle(
 }
 
 /**
- * Deletes a vehicle and its fuel entries. Foreign key cascade is enabled via
- * PRAGMA foreign_keys = ON in migrations, but entries are also deleted
- * explicitly first so this holds even if FK enforcement isn't active on the
- * current connection.
+ * Deletes a vehicle and its fuel entries, atomically. withExclusiveTransactionAsync
+ * opens a separate connection, and PRAGMA foreign_keys = ON (set in migrations) is
+ * only guaranteed on the main connection -- so cascade isn't relied on here even
+ * inside the transaction; entries are deleted explicitly first, same as before.
+ * The transaction only protects against a crash/kill mid-delete leaving a
+ * half-deleted vehicle (e.g. entries gone but the vehicle row still present).
  */
 export async function deleteVehicle(id: string): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync(`DELETE FROM fuel_entries WHERE vehicleId = ?;`, id);
-  await db.runAsync(`DELETE FROM vehicles WHERE id = ?;`, id);
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    await txn.runAsync(`DELETE FROM fuel_entries WHERE vehicleId = ?;`, id);
+    await txn.runAsync(`DELETE FROM vehicles WHERE id = ?;`, id);
+  });
 }

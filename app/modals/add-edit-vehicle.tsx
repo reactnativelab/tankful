@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { ErrorState } from '@/components/ErrorState';
 import { FUEL_TYPE_OPTIONS, VEHICLE_TYPE_OPTIONS } from '@/constants/vehicleOptions';
 import { Radius, Space, type ThemeColors } from '@/constants/theme';
 import { Fonts } from '@/constants/typography';
@@ -35,6 +36,14 @@ export default function AddEditVehicleModal() {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.tint} />
+      </View>
+    );
+  }
+
+  if (form.loadError) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <ErrorState what="vehicle" onRetry={form.retryLoad} colors={colors} />
       </View>
     );
   }
