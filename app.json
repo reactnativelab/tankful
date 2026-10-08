@@ -31,7 +31,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-screen-tankful.png",
-          "resizeMode": "cover",
+          "resizeMode": "contain",
           "enableFullScreenImage_legacy": true,
           "backgroundColor": "#0D1016",
           "dark": {

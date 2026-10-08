@@ -29,7 +29,7 @@ export default function SplashCoverScreen() {
     <Pressable style={styles.container} onPress={advance}>
       <Image
         source={require('../assets/images/splash-screen-tankful.png')}
-        resizeMode="cover"
+        resizeMode="contain"
         style={StyleSheet.absoluteFill}
       />
 
@@ -45,8 +45,9 @@ export default function SplashCoverScreen() {
 const HINT_COLOR = 'rgba(255,255,255,0.82)';
 
 const styles = StyleSheet.create({
-  // The artwork's own bottom edge, so a `cover` crop never flashes a pale
-  // frame on an aspect ratio wider than the 876x1796 it was drawn at.
+  // The artwork's own bottom edge, so the letterbox bars `contain` leaves on
+  // an aspect ratio other than the 876x1796 it was drawn at read as part of
+  // the image rather than a pale frame around it.
   container: { flex: 1, backgroundColor: '#0D1016' },
   hint: {
     position: 'absolute',
