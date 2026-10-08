@@ -8,7 +8,8 @@
     "scheme": "tankful",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.harshald.tankful"
     },
     "android": {
       "package": "com.harshald.tankful",
@@ -29,13 +30,22 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#FFFFFF",
+          "image": "./assets/images/splash-screen-tankful.png",
+          "resizeMode": "cover",
+          "enableFullScreenImage_legacy": true,
+          "backgroundColor": "#0D1016",
           "dark": {
-            "image": "./assets/images/splash-icon-dark.png",
-            "backgroundColor": "#121417"
+            "backgroundColor": "#0D1016"
+          },
+          "android": {
+            "image": "./assets/images/splash-icon.png",
+            "imageWidth": 200,
+            "resizeMode": "contain",
+            "backgroundColor": "#FFFFFF",
+            "dark": {
+              "image": "./assets/images/splash-icon-dark.png",
+              "backgroundColor": "#121417"
+            }
           }
         }
       ],
