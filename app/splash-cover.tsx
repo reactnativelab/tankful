@@ -16,7 +16,9 @@ import { useThemeColors } from '@/hooks/useThemeColors';
  * app/_layout.tsx). Distinct from the native OS splash (expo-splash-screen,
  * configured in app.json), which shows on every launch, not just the first.
  * No generated/photographic art -- a gradient wash plus a few flat SVG
- * shapes, same spirit as the app icon's hand-authored arc-and-needle mark.
+ * shapes, same spirit as the brand's flat drop-and-gauge mark. That mark comes
+ * from splash-icon.png rather than icon.png: icon.png is the full store icon,
+ * an opaque plate, which would show here as a square against the wash.
  */
 export default function SplashCoverScreen() {
   const colors = useThemeColors();
@@ -41,7 +43,7 @@ export default function SplashCoverScreen() {
 
       <View style={styles.content}>
         <Image
-          source={require('../assets/images/icon.png')}
+          source={require('../assets/images/splash-icon.png')}
           style={styles.logo}
           resizeMode="contain"
         />
