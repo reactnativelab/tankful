@@ -46,6 +46,9 @@ const SAFE_ZONE = 0.66;
 /** Transparent margin around the mark on the splash icon canvas. */
 const SPLASH_MARK_HEIGHT = 0.85;
 
+/** The web favicon, which app.json points at. */
+const FAVICON = 48;
+
 /** Lossless -- the plate is a smooth gradient and would band under a palette. */
 const PNG_OPTS = { compressionLevel: 9 };
 
@@ -322,10 +325,28 @@ async function main() {
   // bilinear fit is simply its value at the centre of the plate.
   const plateColor = toHex([0, 1, 2].map((c) => plate.backgroundAt(plate.sourceWidth / 2, plate.sourceHeight / 2, c)));
 
+  // favicon.png -- icon.png's composition on a flat plate, because 48px is far
+  // too small to carry the gradient. Composed at full size and downsampled in
+  // one step, which keeps the mark's edges cleaner than scaling it first.
+  const favicon = await sharp({ create: { width: CANVAS, height: CANVAS, channels: 4, background: plateColor } })
+    .composite([{
+      input: iconMark,
+      left: Math.round((CANVAS - iconMarkWidth) / 2),
+      top: Math.round((CANVAS - iconMarkHeight) / 2),
+    }])
+    .png()
+    .toBuffer();
+  await sharp(favicon)
+    .resize(FAVICON, FAVICON, { kernel: 'lanczos3' })
+    .removeAlpha()
+    .png(PNG_OPTS)
+    .toFile(path.join(IMAGES, 'favicon.png'));
+
   console.log(`mark source        ${mark.width}x${mark.height} keyed out of ${path.basename(ARTWORK_SRC)}`);
   console.log(`icon.png           ${CANVAS}x${CANVAS}, opaque, mark ${iconMarkWidth}x${iconMarkHeight}`);
   console.log(`adaptive foreground${' '.repeat(1)}${CANVAS}x${CANVAS}, transparent, mark fits a ${Math.round(CANVAS * SAFE_ZONE)}px circle`);
   console.log(`splash icons       ${CANVAS}x${CANVAS}, transparent, light and dark identical`);
+  console.log(`favicon.png        ${FAVICON}x${FAVICON}, opaque, mark on a flat ${plateColor}`);
   console.log('');
   console.log(`app.json android.adaptiveIcon.backgroundColor should be ${plateColor}`);
 }

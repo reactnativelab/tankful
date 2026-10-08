@@ -2,12 +2,9 @@ import { useCallback } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Space, type ThemeColors } from '@/constants/theme';
+import { Space } from '@/constants/theme';
 import { Fonts } from '@/constants/typography';
-import { useThemeColors } from '@/hooks/useThemeColors';
 
 /**
  * One-time illustrated cover shown before onboarding on true first launch --
@@ -15,13 +12,13 @@ import { useThemeColors } from '@/hooks/useThemeColors';
  * gate/timing that used to redirect straight to /onboarding (see
  * app/_layout.tsx). Distinct from the native OS splash (expo-splash-screen,
  * configured in app.json), which shows on every launch, not just the first.
- * No generated/photographic art -- a gradient wash plus a few flat SVG
- * shapes, same spirit as the brand's flat drop-and-gauge mark. That mark comes
- * from splash-icon.png rather than icon.png: icon.png is the full store icon,
- * an opaque plate, which would show here as a square against the wash.
+ *
+ * The artwork is the screen. It already carries the mark, the wordmark and
+ * both taglines, so the only thing layered over it is the tap hint -- and the
+ * hint is the one place here that ignores the theme: it sits on the artwork's
+ * near-black asphalt, which looks the same whichever theme the device is in.
  */
 export default function SplashCoverScreen() {
-  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
 
   const advance = useCallback(() => {
@@ -29,78 +26,36 @@ export default function SplashCoverScreen() {
   }, []);
 
   return (
-    <Pressable
-      style={[styles.container, { backgroundColor: colors.background }]}
-      onPress={advance}
-    >
-      <LinearGradient
-        colors={[colors.background, `${colors.tint}33`, colors.background]}
-        locations={[0, 0.62, 1]}
+    <Pressable style={styles.container} onPress={advance}>
+      <Image
+        source={require('../assets/images/splash-screen-tankful.png')}
+        resizeMode="cover"
         style={StyleSheet.absoluteFill}
       />
 
-      <MountainSilhouette colors={colors} />
-
-      <View style={styles.content}>
-        <Image
-          source={require('../assets/images/splash-icon.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={[styles.wordmark, { color: colors.text }]}>Tankful</Text>
-        <Text style={[styles.tagline, { color: colors.textMuted }]}>
-          Better mileage. Lower costs. More freedom.
-        </Text>
-      </View>
-
       <View style={[styles.hint, { bottom: insets.bottom + Space.xl }]}>
-        <Text style={[styles.hintLabel, { color: colors.textMuted }]}>Tap to continue</Text>
-        <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+        <Text style={styles.hintLabel}>Tap to continue</Text>
+        <Ionicons name="chevron-forward" size={14} color={HINT_COLOR} />
       </View>
     </Pressable>
   );
 }
 
-/** Three layered ridgelines + a road wedge, darkest nearest the viewer. */
-function MountainSilhouette({ colors }: { colors: ThemeColors }) {
-  return (
-    <Svg
-      width="100%"
-      height="40%"
-      viewBox="0 0 400 200"
-      style={styles.mountains}
-      preserveAspectRatio="none"
-    >
-      <Path
-        d="M0,150 L55,85 L115,145 L175,65 L235,135 L295,95 L355,145 L400,115 L400,200 L0,200 Z"
-        fill={`${colors.tint}22`}
-      />
-      <Path
-        d="M0,175 L80,115 L150,165 L220,105 L300,170 L400,135 L400,200 L0,200 Z"
-        fill={`${colors.tint}55`}
-      />
-      <Path d="M170,200 L185,120 L215,120 L230,200 Z" fill={colors.background} opacity={0.9} />
-      <Path
-        d="M0,200 L100,178 L200,196 L300,168 L400,190 L400,200 Z"
-        fill={colors.tint}
-        opacity={0.85}
-      />
-    </Svg>
-  );
-}
+/** White, like the artwork's own footer type, dimmed so the hint stays secondary. */
+const HINT_COLOR = 'rgba(255,255,255,0.82)';
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  mountains: { position: 'absolute', bottom: 0, left: 0 },
-  content: { alignItems: 'center', gap: Space.md, paddingHorizontal: Space.xxl },
-  logo: { width: 72, height: 72 },
-  wordmark: { fontSize: 32, fontFamily: Fonts.extraBold },
-  tagline: { fontSize: 15, fontFamily: Fonts.regular, textAlign: 'center', lineHeight: 22 },
+  // The artwork's own bottom edge, so a `cover` crop never flashes a pale
+  // frame on an aspect ratio wider than the 876x1796 it was drawn at.
+  container: { flex: 1, backgroundColor: '#0D1016' },
   hint: {
     position: 'absolute',
+    left: 0,
+    right: 0,
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
     gap: 4,
   },
-  hintLabel: { fontSize: 13, fontFamily: Fonts.semiBold },
+  hintLabel: { fontSize: 13, fontFamily: Fonts.semiBold, color: HINT_COLOR },
 });
